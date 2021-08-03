@@ -1,7 +1,12 @@
 {
     "locale": {
         "en": {
-            "startJobCreation": "Start job creation"
+            "startJobCreation": "Start job creation",
+            "setSignupLocation": "Set signup location",
+            "jobSignupPED":"Singup PED model",
+            "set": "Set",
+            "cancel": "Cancel",
+            "placeNPCHelpText":"Press ~INPUT_PICKUP~ to place the signup NPC or ~INPUT_FRONTEND_PAUSE_ALTERNATE~ to cancel the operation ~b~"
         }
     }
 }
