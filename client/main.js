@@ -41,8 +41,12 @@ function fillRadialMenu(businesses) {
                     action: 'https://mrp_jobs/creation_start'
                 });
 
+                let id = "set_signup_location";
+                if (business._id && business._id.id) {
+                    id = ObjectID(Object.values(business._id.id)).toString();
+                }
                 submenu.push({
-                    id: 'set_signup_location',
+                    id: id,
                     text: locale.setSignupLocation,
                     action: 'https://mrp_jobs/set_signup_location'
                 });
@@ -99,8 +103,13 @@ on('__cfx_nui:set_signup_location', (data, cb) => {
 });
 
 on('mrp:jobs:client:set_signup_location', (data) => {
+    let select = '<select name="jobSignupPED">';
+    for (let pedHash of config.pedList) {
+        select += '<option value="' + pedHash + '">' + pedHash + '</option>';
+    }
+    select += '</select>';
     emit('mrp:popup', {
-        message: '<label for="jobSignupPED">' + locale.jobSignupPED + ':</label><input type="text" name="jobSignupPED">',
+        message: '<input type="hidden" name="businessId" value="' + data.id + '"><label for="jobSignupPED">' + locale.jobSignupPED + ':</label>' + select,
         actions: [{
             text: locale.set,
             url: 'https://mrp_jobs/set_signup_location_confirm'
@@ -111,7 +120,7 @@ on('mrp:jobs:client:set_signup_location', (data) => {
     });
 });
 
-function startPlacinngNPC(model) {
+function startPlacinngNPC(model, businessId) {
     let exec = async () => {
         let ped = PlayerPedId();
 
@@ -143,6 +152,7 @@ function startPlacinngNPC(model) {
 
         state.name = managementStates.PLACE_NPC;
         state.data.ped = npcPED;
+        state.data.businessId = businessId;
     }
     exec();
 }
@@ -152,7 +162,7 @@ on('__cfx_nui:set_signup_location_confirm', (data, cb) => {
     cb({});
 
     if (state.name == managementStates.NONE)
-        startPlacinngNPC(data.jobSignupPED);
+        startPlacinngNPC(data.jobSignupPED, data.businessId);
 });
 
 function updateNPCPosition(npcPED) {
@@ -177,11 +187,27 @@ function resetState() {
     };
 }
 
+function networkPed(ped, businessId) {
+    emitNet('mrp:jobs:server:unregisterNetPed', GetPlayerServerId(PlayerId()), businessId);
+
+    SetEntityCollision(ped, true, true);
+    NetworkRegisterEntityAsNetworked(ped);
+    let netId = PedToNet(ped);
+    SetNetworkIdCanMigrate(netId, false);
+    NetworkUseHighPrecisionBlending(netId, false);
+    SetNetworkIdExistsOnAllMachines(netId, true);
+    FreezeEntityPosition(ped, true);
+    console.log(`Network ID [${netId}]`);
+
+    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), netId, businessId);
+}
+
 setInterval(() => {
     switch (state.name) {
         case managementStates.PLACE_NPC:
             if (state.data.ped) {
                 DisableControlAction(1, 200, true); //disable ESC menu
+                DisableControlAction(1, 38, true); //disable E pickup
                 MRP_CLIENT.displayHelpText(locale.placeNPCHelpText);
                 updateNPCPosition(state.data.ped);
             }
@@ -190,6 +216,15 @@ setInterval(() => {
                 if (state.data.ped)
                     DeleteEntity(state.data.ped);
                 resetState();
+                EnableControlAction(1, 38, true);
+                EnableControlAction(1, 200, true);
+            }
+            if (IsDisabledControlJustReleased(1, 38)) {
+                //E pressed
+                if (state.data.ped && state.data.businessId)
+                    networkPed(state.data.ped, state.data.businessId);
+                resetState();
+                EnableControlAction(1, 38, true);
                 EnableControlAction(1, 200, true);
             }
             break;

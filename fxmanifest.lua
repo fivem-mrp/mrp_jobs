@@ -15,6 +15,7 @@ files {
 
 shared_scripts {
     '@mrp_core/shared/debug.js',
+    'lib/objectid.js',
     'lib/nanoid.js',
 }
 
