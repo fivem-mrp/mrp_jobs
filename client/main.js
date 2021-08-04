@@ -22,7 +22,8 @@ let creatorBusinesses = [];
 
 const managementStates = {
     NONE: "NONE",
-    PLACE_NPC: "PLACE_NPC"
+    PLACE_NPC: "PLACE_NPC",
+    PLACE_VEH: "PLACE_VEH"
 };
 
 let state = {
@@ -46,9 +47,15 @@ function fillRadialMenu(businesses) {
                     id = ObjectID(Object.values(business._id.id)).toString();
                 }
                 submenu.push({
-                    id: id,
+                    id: "signup_" + id,
                     text: locale.setSignupLocation,
                     action: 'https://mrp_jobs/set_signup_location'
+                });
+
+                submenu.push({
+                    id: "spawn_" + id,
+                    text: locale.setVehicleSpawnLocation,
+                    action: 'https://mrp_jobs/set_vehicle_spawn_location'
                 });
 
                 emit('mrp:radial_menu:addMenuItem', {
@@ -95,9 +102,18 @@ on('__cfx_nui:job_management', (data, cb) => {
 
 RegisterNuiCallbackType('set_signup_location');
 on('__cfx_nui:set_signup_location', (data, cb) => {
-    data.id = data.id.replaceAll("_", " "); // replace underscores for spaces back
+    data.id = data.id.replaceAll("sign_", ""); // replace underscores for spaces back
 
     emit("mrp:jobs:client:set_signup_location", data);
+
+    cb({});
+});
+
+RegisterNuiCallbackType('set_vehicle_spawn_location');
+on('__cfx_nui:set_vehicle_spawn_location', (data, cb) => {
+    data.id = data.id.replaceAll("spawn_", ""); // replace underscores for spaces back
+
+    emit("mrp:jobs:client:set_vehicle_spawn_location", data);
 
     cb({});
 });
@@ -118,6 +134,37 @@ on('mrp:jobs:client:set_signup_location', (data) => {
             url: 'https://mrp_jobs/set_signup_location_cancel'
         }]
     });
+});
+
+on('mrp:jobs:client:set_vehicle_spawn_location', (data) => {
+    let select = '<select name="jobVehicleModelSpawn">';
+    for (let vehHash of config.deliveryVehicles) {
+        select += '<option value="' + vehHash + '">' + vehHash + '</option>';
+    }
+    select += '</select>';
+    emit('mrp:popup', {
+        message: '<input type="hidden" name="businessId" value="' + data.id + '"><label for="jobVehicleModelSpawn">' + locale.jobVehicleModelSpawn + ':</label>' + select,
+        actions: [{
+            text: locale.set,
+            url: 'https://mrp_jobs/set_vehicle_spawn_location_confirm'
+        }, {
+            text: locale.cancel,
+            url: 'https://mrp_jobs/set_vehicle_spawn_location_cancel'
+        }]
+    });
+});
+
+RegisterNuiCallbackType('set_vehicle_spawn_location_confirm');
+on('__cfx_nui:set_vehicle_spawn_location_confirm', (data, cb) => {
+    cb({});
+
+    if (state.name == managementStates.NONE)
+        startPlacinngVehicleSpawn(data.jobVehicleModelSpawn, data.businessId);
+});
+
+RegisterNuiCallbackType('set_vehicle_spawn_location_cancel');
+on('__cfx_nui:set_vehicle_spawn_location_cancel', (data, cb) => {
+    cb({});
 });
 
 function startPlacinngNPC(model, businessId) {
@@ -157,6 +204,34 @@ function startPlacinngNPC(model, businessId) {
     exec();
 }
 
+function startPlacinngVehicleSpawn(model, businessId) {
+    let exec = async () => {
+        let ped = PlayerPedId();
+
+        let [playerX, playerY, playerZ] = GetEntityCoords(ped, true);
+        let [offsetX, offsetY, offsetZ] = GetOffsetFromEntityInWorldCoords(ped, 0, 5.0, 0);
+
+        let dx = playerX - offsetX;
+        let dy = playerY - offsetY;
+
+        let heading = GetHeadingFromVector_2d(dx, dy);
+
+        let modelHash = GetHashKey(model);
+        RequestModel(modelHash);
+        while (!HasModelLoaded(modelHash)) {
+            await utils.sleep(100);
+        }
+
+        let veh = CreateVehicle(modelHash, offsetX, offsetY, offsetZ, heading, false, false);
+        SetEntityCollision(veh, false, false);
+
+        state.name = managementStates.PLACE_VEH;
+        state.data.veh = veh;
+        state.data.businessId = businessId;
+    }
+    exec();
+}
+
 RegisterNuiCallbackType('set_signup_location_confirm');
 on('__cfx_nui:set_signup_location_confirm', (data, cb) => {
     cb({});
@@ -180,6 +255,21 @@ function updateNPCPosition(npcPED) {
     SetEntityHeading(npcPED, heading);
 }
 
+function updateVehPosition(veh) {
+    let ped = PlayerPedId();
+
+    let [playerX, playerY, playerZ] = GetEntityCoords(ped, true);
+    let [offsetX, offsetY, offsetZ] = GetOffsetFromEntityInWorldCoords(ped, 0, 5.0, 0.0);
+
+    let dx = playerX - offsetX;
+    let dy = playerY - offsetY;
+
+    let heading = GetHeadingFromVector_2d(dx, dy);
+
+    SetEntityCoords(veh, offsetX, offsetY, offsetZ, true, false, false, false);
+    SetEntityHeading(veh, heading);
+}
+
 function resetState() {
     state = {
         name: managementStates.NONE,
@@ -199,7 +289,19 @@ function networkPed(ped, businessId) {
     FreezeEntityPosition(ped, true);
     console.log(`Network ID [${netId}]`);
 
-    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), netId, businessId);
+    let [pedX, pedY, pedZ] = GetEntityCoords(ped);
+    let heading = GetEntityHeading(ped);
+
+    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), {
+        netId: netId,
+        businessId: businessId,
+        signupLocation: {
+            x: pedX,
+            y: pedY,
+            z: pedZ,
+            heading: heading
+        }
+    });
 }
 
 setInterval(() => {
@@ -223,6 +325,22 @@ setInterval(() => {
                 //E pressed
                 if (state.data.ped && state.data.businessId)
                     networkPed(state.data.ped, state.data.businessId);
+                resetState();
+                EnableControlAction(1, 38, true);
+                EnableControlAction(1, 200, true);
+            }
+            break;
+        case managementStates.PLACE_VEH:
+            if (state.data.veh) {
+                DisableControlAction(1, 200, true); //disable ESC menu
+                DisableControlAction(1, 38, true); //disable E pickup
+                MRP_CLIENT.displayHelpText(locale.placeVehHelpText);
+                updateVehPosition(state.data.veh);
+            }
+            if (IsDisabledControlJustReleased(1, 200)) {
+                //ESC stop placing
+                if (state.data.veh)
+                    DeleteEntity(state.data.veh);
                 resetState();
                 EnableControlAction(1, 38, true);
                 EnableControlAction(1, 200, true);
