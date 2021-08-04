@@ -9,7 +9,8 @@
             "placeNPCHelpText":"Press ~INPUT_PICKUP~ to place the signup NPC or ~INPUT_FRONTEND_PAUSE_ALTERNATE~ to cancel the operation ~b~",
             "placeVehHelpText": "Press ~INPUT_PICKUP~ to place the vehicle spawn location or ~INPUT_FRONTEND_PAUSE_ALTERNATE~ to cancel the operation ~b~",
             "setVehicleSpawnLocation": "Set vehicle spawn location",
-            "jobVehicleModelSpawn": "Select vehicle type to spawn"
+            "jobVehicleModelSpawn": "Select vehicle type to spawn",
+            "errSetSignupFirst": "Set signup location first"
         }
     },
     "pedList": [

@@ -102,7 +102,7 @@ on('__cfx_nui:job_management', (data, cb) => {
 
 RegisterNuiCallbackType('set_signup_location');
 on('__cfx_nui:set_signup_location', (data, cb) => {
-    data.id = data.id.replaceAll("sign_", ""); // replace underscores for spaces back
+    data.id = data.id.replaceAll("signup_", ""); // replace underscores for spaces back
 
     emit("mrp:jobs:client:set_signup_location", data);
 
@@ -304,6 +304,21 @@ function networkPed(ped, businessId) {
     });
 }
 
+function setVehicleSpawnLocation(veh, businessId) {
+    let [entX, entY, entZ] = GetEntityCoords(veh);
+    let heading = GetEntityHeading(veh);
+
+    emitNet('mrp:jobs:server:registerVehicleSpawnLocation', GetPlayerServerId(PlayerId()), {
+        businessId: businessId,
+        vehicleSpawnLocation: {
+            x: entX,
+            y: entY,
+            z: entZ,
+            heading: heading
+        }
+    });
+}
+
 setInterval(() => {
     switch (state.name) {
         case managementStates.PLACE_NPC:
@@ -339,6 +354,15 @@ setInterval(() => {
             }
             if (IsDisabledControlJustReleased(1, 200)) {
                 //ESC stop placing
+                if (state.data.veh)
+                    DeleteEntity(state.data.veh);
+                resetState();
+                EnableControlAction(1, 38, true);
+                EnableControlAction(1, 200, true);
+            }
+            if (IsDisabledControlJustReleased(1, 38)) {
+                //E pressed
+                setVehicleSpawnLocation(state.data.veh, state.data.businessId);
                 if (state.data.veh)
                     DeleteEntity(state.data.veh);
                 resetState();
