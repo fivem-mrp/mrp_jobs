@@ -292,6 +292,8 @@ function networkPed(ped, businessId) {
     let [pedX, pedY, pedZ] = GetEntityCoords(ped);
     let heading = GetEntityHeading(ped);
 
+    let modelHash = GetEntityModel(ped);
+
     emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), {
         netId: netId,
         businessId: businessId,
@@ -299,7 +301,8 @@ function networkPed(ped, businessId) {
             x: pedX,
             y: pedY,
             z: pedZ,
-            heading: heading
+            heading: heading,
+            modelHash: modelHash
         }
     });
 }
@@ -308,13 +311,16 @@ function setVehicleSpawnLocation(veh, businessId) {
     let [entX, entY, entZ] = GetEntityCoords(veh);
     let heading = GetEntityHeading(veh);
 
+    let modelHash = GetEntityModel(veh);
+
     emitNet('mrp:jobs:server:registerVehicleSpawnLocation', GetPlayerServerId(PlayerId()), {
         businessId: businessId,
         vehicleSpawnLocation: {
             x: entX,
             y: entY,
             z: entZ,
-            heading: heading
+            heading: heading,
+            modelHash: modelHash
         }
     });
 }

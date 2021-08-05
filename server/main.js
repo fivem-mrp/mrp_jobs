@@ -1,3 +1,4 @@
+const ObjectID = require('mongodb').ObjectID;
 const config = require('./config/config.json');
 
 let localeConvar = GetConvar("mrp_locale", "en");
@@ -16,6 +17,18 @@ let signupLocations = {};
 onNet('mrp:jobs:server:registerNetPed', (source, obj) => {
     console.log(`Register net PED ${JSON.stringify(obj)}`);
     signupLocations[obj.businessId] = obj;
+
+    let bid = ObjectID.createFromHexString(obj.businessId);
+
+    let cloneObj = JSON.parse(JSON.stringify(obj));
+    cloneObj.businessId = bid;
+    delete cloneObj.netId;
+
+    MRP_SERVER.update('job', cloneObj, {
+        businessId: obj.businessId
+    }, null, (r) => {
+        console.log('job created');
+    });
 });
 
 onNet('mrp:jobs:server:unregisterNetPed', (source, businessId) => {
@@ -41,4 +54,16 @@ onNet('mrp:jobs:server:registerVehicleSpawnLocation', (source, obj) => {
     }
 
     signupLocations[obj.businessId].vehicleSpawnLocation = obj.vehicleSpawnLocation;
+
+    let bid = ObjectID.createFromHexString(obj.businessId);
+
+    let cloneObj = JSON.parse(JSON.stringify(signupLocations[obj.businessId]));
+    cloneObj.businessId = bid;
+    delete cloneObj.netId;
+
+    MRP_SERVER.update('job', cloneObj, {
+        businessId: bid
+    }, {}, (r) => {
+        console.log('job updated');
+    });
 });

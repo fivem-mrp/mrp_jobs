@@ -15,11 +15,10 @@ files {
 
 shared_scripts {
     '@mrp_core/shared/debug.js',
-    'lib/objectid.js',
-    'lib/nanoid.js',
 }
 
 client_scripts {
+    'lib/objectid.js',
     'client/*.js',
 }
 
