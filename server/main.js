@@ -67,3 +67,9 @@ onNet('mrp:jobs:server:registerVehicleSpawnLocation', (source, obj) => {
         console.log('job updated');
     });
 });
+
+onNet('mrp:jobs:server:getJob', (source, data, uuid) => {
+    MRP_SERVER.find('job', {}, undefined, undefined, (result) => {
+        emitNet('mrp:jobs:server:getJob:response', source, result, uuid);
+    });
+});

@@ -31,6 +31,32 @@ let state = {
     data: {}
 };
 
+let allJobs = {};
+
+on('onClientResourceStart', (name) => {
+    if (name != GetCurrentResourceName())
+        return;
+
+    MRP_CLIENT.TriggerServerCallback('mrp:jobs:server:getJob', [undefined], (result) => {
+        for (let r of result) {
+            let oid = ObjectID(Object.values(r.businessId.id)).toString();
+            allJobs[oid] = r;
+            if (r.signupLocation) {
+                let sl = r.signupLocation;
+                MRP_CLIENT.spawnSharedNPC({
+                    model: sl.modelHash,
+                    x: sl.x,
+                    y: sl.y,
+                    z: sl.z,
+                    heading: sl.heading
+                });
+
+                //TODO register PED on server
+            }
+        }
+    });
+});
+
 function fillRadialMenu(businesses) {
     if (businesses && businesses.length > 0) {
         for (let business of businesses) {
@@ -294,8 +320,7 @@ function networkPed(ped, businessId) {
 
     let modelHash = GetEntityModel(ped);
 
-    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), {
-        netId: netId,
+    let obj = {
         businessId: businessId,
         signupLocation: {
             x: pedX,
@@ -304,7 +329,11 @@ function networkPed(ped, businessId) {
             heading: heading,
             modelHash: modelHash
         }
-    });
+    };
+
+    allJobs[businessId] = obj;
+
+    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), obj);
 }
 
 function setVehicleSpawnLocation(veh, businessId) {
@@ -312,6 +341,14 @@ function setVehicleSpawnLocation(veh, businessId) {
     let heading = GetEntityHeading(veh);
 
     let modelHash = GetEntityModel(veh);
+
+    allJobs[businessId].vehicleSpawnLocation = {
+        x: entX,
+        y: entY,
+        z: entZ,
+        heading: heading,
+        modelHash: modelHash
+    };
 
     emitNet('mrp:jobs:server:registerVehicleSpawnLocation', GetPlayerServerId(PlayerId()), {
         businessId: businessId,
