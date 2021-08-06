@@ -10,9 +10,11 @@
             "placeVehHelpText": "Press ~INPUT_PICKUP~ to place the vehicle spawn location or ~INPUT_FRONTEND_PAUSE_ALTERNATE~ to cancel the operation ~b~",
             "setVehicleSpawnLocation": "Set vehicle spawn location",
             "jobVehicleModelSpawn": "Select vehicle type to spawn",
-            "errSetSignupFirst": "Set signup location first"
+            "errSetSignupFirst": "Set signup location first",
+            "signup": "Signup"
         }
     },
+    "jobCheckInterval": 1000,
     "pedList": [
         "a_c_boar",
         "a_c_cat_01",

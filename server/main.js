@@ -12,9 +12,13 @@ while (MRP_SERVER == null) {
     print('Waiting for shared object....');
 }
 
+let DELIVERY_JOB = "delivery";
+
+let playerSignups = {};
+
 let signupLocations = {};
 
-onNet('mrp:jobs:server:registerNetPed', (source, obj) => {
+onNet('mrp:jobs:server:registerNetPed', (source, obj, persist = true) => {
     console.log(`Register net PED ${JSON.stringify(obj)}`);
     signupLocations[obj.businessId] = obj;
 
@@ -24,11 +28,12 @@ onNet('mrp:jobs:server:registerNetPed', (source, obj) => {
     cloneObj.businessId = bid;
     delete cloneObj.netId;
 
-    MRP_SERVER.update('job', cloneObj, {
-        businessId: obj.businessId
-    }, null, (r) => {
-        console.log('job created');
-    });
+    if (persist)
+        MRP_SERVER.update('job', cloneObj, {
+            businessId: obj.businessId
+        }, null, (r) => {
+            console.log('job created');
+        });
 });
 
 onNet('mrp:jobs:server:unregisterNetPed', (source, businessId) => {
@@ -73,3 +78,59 @@ onNet('mrp:jobs:server:getJob', (source, data, uuid) => {
         emitNet('mrp:jobs:server:getJob:response', source, result, uuid);
     });
 });
+
+onNet('mrp:jobs:server:signup', (source, businessId) => {
+    let char = MRP_SERVER.getSpawnedCharacter(source);
+    if (!char)
+        return;
+
+    let signups = playerSignups[char.stateId];
+    if (!signups)
+        signups = {};
+
+    if (!signups[businessId]) {
+        let bid = ObjectID.createFromHexString(businessId);
+        MRP_SERVER.read('business', {
+            _id: bid
+        }, (business) => {
+            if (!business)
+                return;
+
+            signups[businessId] = business;
+            playerSignups[char.stateId] = signups;
+        });
+    }
+});
+
+function findCharacter(stateId) {
+    let chars = MRP_SERVER.getSpawnedCharacters();
+    for (let source in chars) {
+        let char = chars[source];
+        if (char.stateId == stateId)
+            return [source, char];
+    }
+    return [null, null];
+}
+
+setInterval(() => {
+    for (let stateId in playerSignups) {
+        let signups = playerSignups[stateId];
+        let [source, char] = findCharacter(stateId);
+        if (char) {
+            for (let businessIdStr in signups) {
+                let business = signups[businessIdStr];
+                if (!business.jobInProgress && business.type == DELIVERY_JOB) {
+                    //doesn't have delivery job started yet give one
+                    MRP_SERVER.read('job', {
+                        businessId: business._id
+                    }, (r) => {
+                        if (!r)
+                            return;
+                        console.log(`Starting job [${JSON.stringify(r)}]`);
+                        emitNet('mrp:jobs:client:startJob', source, r);
+                    });
+                }
+            }
+        }
+    }
+}, config.jobCheckInterval);

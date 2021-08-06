@@ -31,6 +31,8 @@ let state = {
     data: {}
 };
 
+let mission = {};
+
 let allJobs = {};
 
 on('onClientResourceStart', (name) => {
@@ -51,7 +53,21 @@ on('onClientResourceStart', (name) => {
                     heading: sl.heading
                 });
 
-                //TODO register PED on server
+                let obj = {
+                    businessId: oid,
+                    signupLocation: {
+                        x: sl.x,
+                        y: sl.y,
+                        z: sl.z,
+                        heading: sl.heading,
+                        modelHash: sl.modelHash
+                    }
+                };
+
+                if (r.vehicleSpawnLocation)
+                    obj.vehicleSpawnLocation = r.vehicleSpawnLocation;
+
+                emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), obj, false);
             }
         }
     });
@@ -266,6 +282,15 @@ on('__cfx_nui:set_signup_location_confirm', (data, cb) => {
         startPlacinngNPC(data.jobSignupPED, data.businessId);
 });
 
+RegisterNuiCallbackType('signup');
+on('__cfx_nui:signup', (data, cb) => {
+    cb({});
+
+    if (data.businessId) {
+        emitNet('mrp:jobs:server:signup', GetPlayerServerId(PlayerId()), data.businessId);
+    }
+});
+
 function updateNPCPosition(npcPED) {
     let ped = PlayerPedId();
 
@@ -362,6 +387,12 @@ function setVehicleSpawnLocation(veh, businessId) {
     });
 }
 
+onNet('mrp:jobs:client:startJob', (job) => {
+    console.log('Starting job...');
+    //TODO
+});
+
+//management handling cycle
 setInterval(() => {
     switch (state.name) {
         case managementStates.PLACE_NPC:
@@ -417,3 +448,31 @@ setInterval(() => {
             break;
     }
 }, 1);
+
+//NPC handling cycle
+setInterval(() => {
+    for (let businessId in allJobs) {
+        let job = allJobs[businessId];
+        let location = job.signupLocation;
+        if (location) {
+            let ped = PlayerPedId();
+            let modelHash = location.modelHash;
+
+            if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
+                let pedInFront = MRP_CLIENT.getPedInFront();
+                if (pedInFront > 0) {
+                    emit('mrp:thirdeye:addMenuItem', {
+                        businessId: businessId,
+                        id: 'signup_' + businessId,
+                        text: locale.signup,
+                        action: 'https://mrp_jobs/signup'
+                    });
+                } else {
+                    emit('mrp:thirdeye:removeMenuItem', {
+                        id: 'signup_' + businessId
+                    });
+                }
+            }
+        }
+    }
+}, 0);
