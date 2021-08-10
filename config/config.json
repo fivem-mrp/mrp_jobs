@@ -11,7 +11,8 @@
             "setVehicleSpawnLocation": "Set vehicle spawn location",
             "jobVehicleModelSpawn": "Select vehicle type to spawn",
             "errSetSignupFirst": "Set signup location first",
-            "signup": "Signup"
+            "signup": "Signup",
+            "addDeliveryDestination": "Add delivery destination"
         }
     },
     "jobCheckInterval": 1000,

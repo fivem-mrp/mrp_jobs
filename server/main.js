@@ -102,6 +102,28 @@ onNet('mrp:jobs:server:signup', (source, businessId) => {
     }
 });
 
+onNet('mrp:jobs:server:addDeliveryDestination', (position, businessId) => {
+    let bid = ObjectID.createFromHexString(businessId);
+
+    MRP_SERVER.read('job', {
+        businessId: bid
+    }, (r) => {
+        if (!r)
+            return;
+
+        if (!r.routes)
+            r.routes = [];
+
+        r.routes.push(position);
+
+        MRP_SERVER.update('job', r, {
+            _id: r._id
+        }, null, (result) => {
+            console.log('route for job added');
+        });
+    });
+});
+
 function findCharacter(stateId) {
     let chars = MRP_SERVER.getSpawnedCharacters();
     for (let source in chars) {

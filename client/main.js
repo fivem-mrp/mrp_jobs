@@ -78,16 +78,17 @@ function fillRadialMenu(businesses) {
         for (let business of businesses) {
             let submenu = [];
             if (business && business.type == "delivery") {
-                submenu.push({
-                    id: 'job_creation_start',
-                    text: locale.startJobCreation,
-                    action: 'https://mrp_jobs/creation_start'
-                });
-
                 let id = "set_signup_location";
                 if (business._id && business._id.id) {
                     id = ObjectID(Object.values(business._id.id)).toString();
                 }
+
+                submenu.push({
+                    id: 'job_add_delivery_destination_' + id,
+                    text: locale.addDeliveryDestination,
+                    action: 'https://mrp_jobs/add_delivery_destination'
+                });
+
                 submenu.push({
                     id: "signup_" + id,
                     text: locale.setSignupLocation,
@@ -141,6 +142,21 @@ on('__cfx_nui:job_management', (data, cb) => {
     cb({});
 });
 
+RegisterNuiCallbackType('add_delivery_destination');
+on('__cfx_nui:add_delivery_destination', (data, cb) => {
+    cb({});
+
+    let ped = PlayerPedId();
+    if (ped) {
+        let id = data.id.replaceAll("job_add_delivery_destination_", "");
+        let [coordX, coordY, coordZ] = GetEntityCoords(ped);
+        emitNet('mrp:jobs:server:addDeliveryDestination', {
+            x: coordX,
+            y: coordY,
+            z: coordZ
+        }, id);
+    }
+});
 
 RegisterNuiCallbackType('set_signup_location');
 on('__cfx_nui:set_signup_location', (data, cb) => {
