@@ -119,6 +119,12 @@ onNet('mrp:jobs:server:addDeliveryDestination', (position, businessId) => {
         MRP_SERVER.update('job', r, {
             _id: r._id
         }, null, (result) => {
+            emitNet('chat:addMessage', source, {
+                template: '<div class="chat-message nonemergency">{0}</div>',
+                args: [
+                    locale.routeAdded
+                ]
+            });
             console.log('route for job added');
         });
     });
