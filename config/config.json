@@ -21,7 +21,9 @@
             "getShipmentFromVehicle": "Get shipment from vehicle",
             "dropShipment": "Drop shipment at the location",
             "returnVehicle": "Return vehicle",
-            "parkVehicle": "Park vehicle"
+            "parkVehicle": "Park vehicle",
+            "trunk": "Trunk",
+            "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~"
         }
     },
     "missionStages": {
@@ -30,6 +32,7 @@
     "deliveryBlip": 616,
     "deliveryBlipColor": 12,
     "deliveryLocationArea": 40,
+    "deliveryDistanceToTrunk": 3,
     "jobCheckInterval": 1000,
     "pedList": [
         "a_c_boar",

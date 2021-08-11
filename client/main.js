@@ -635,6 +635,8 @@ function handleDeliveryStages(mission) {
     if (!mission)
         return;
 
+    let ped = PlayerPedId();
+
     switch (mission.currentStage) {
         case "getVehicle":
             if (isInVehicle(mission.vehicle)) {
@@ -651,11 +653,34 @@ function handleDeliveryStages(mission) {
             }
             break;
         case "driveToLocation":
-            let ped = PlayerPedId();
             let wp = mission.currentWaypoint;
             if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
                 //next stage
                 nextStage(mission);
+            }
+            break;
+        case "getShipmentFromVehicle":
+            let [trunkposX, trunkposY, trunkposZ] = GetWorldPositionOfEntityBone(mission.vehicle, GetEntityBoneIndexByName(mission.vehicle, "taillight_l"));
+            MRP_CLIENT.drawText3D(trunkposX, trunkposY, trunkposZ, locale.trunk);
+            let [pX, pY, pZ] = GetEntityCoords(ped);
+            let distanceToTrunk = Vdist(pX, pY, pZ, trunkposX, trunkposY, trunkposZ);
+            if (distanceToTrunk <= config.deliveryDistanceToTrunk) {
+                MRP_CLIENT.displayHelpText(locale.deliveryGetShipmentHelp);
+                if (IsControlJustPressed(1, 38)) {
+                    //next stage
+                    nextStage(mission);
+
+                    /*
+                       ["box"] = {"anim@heists@box_carry@", "idle", "Box", AnimationOptions =
+                       {
+                           Prop = "hei_prop_heist_box",
+                           PropBone = 60309,
+                           PropPlacement = {0.025, 0.08, 0.255, -145.0, 290.0, 0.0},
+                           EmoteLoop = true,
+                           EmoteMoving = true,
+                       }},
+                    */
+                }
             }
             break;
         default:
