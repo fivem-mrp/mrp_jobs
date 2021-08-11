@@ -132,6 +132,39 @@ onNet('mrp:jobs:server:addDeliveryDestination', (position, businessId) => {
     });
 });
 
+onNet('mrp:jobs:server:getMission', (jobId) => {
+    let src = global.source;
+
+    let jid = ObjectID.createFromHexString(jobId);
+
+    MRP_SERVER.read('job', {
+        _id: jid
+    }, (job) => {
+        if (!job) {
+            console.log(`No job found for id [${jobId}]`);
+            return;
+        }
+
+        MRP_SERVER.read('job', {
+            _id: job.businessId
+        }, (business) => {
+            if (!business) {
+                console.log(`No business found for id [${job.businessId}]`);
+                return;
+            }
+
+            let mission = {
+                type: business.type,
+                data: {
+                    job: job
+                }
+            };
+
+            emitNet('mrp:jobs:client:startMission', src, mission);
+        });
+    });
+});
+
 function findCharacter(stateId) {
     let chars = MRP_SERVER.getSpawnedCharacters();
     for (let source in chars) {
@@ -157,6 +190,7 @@ setInterval(() => {
                         if (!r)
                             return;
                         console.log(`Starting job [${JSON.stringify(r)}]`);
+                        business.jobInProgress = true;
                         emitNet('mrp:jobs:client:startJob', source, r);
                     });
                 }

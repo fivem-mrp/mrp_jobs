@@ -13,8 +13,19 @@
             "errSetSignupFirst": "Set signup location first",
             "signup": "Signup",
             "addDeliveryDestination": "Add delivery destination",
-            "routeAdded": "Route added to job"
+            "routeAdded": "Route added to job",
+            "startJob": "Starting a new job",
+            "getMission": "Get job",
+            "getVehicle": "Get into vehicle",
+            "driveToLocation": "Drive to location",
+            "getShipmentFromVehicle": "Get shipment from vehicle",
+            "dropShipment": "Drop shipment at the location",
+            "returnVehicle": "Return vehicle",
+            "parkVehicle": "Park vehicle"
         }
+    },
+    "missionStages": {
+        "delivery": ["getVehicle", "driveToLocation", "getShipmentFromVehicle", "dropShipment", "getVehicle", "returnVehicle", "parkVehicle"];
     },
     "jobCheckInterval": 1000,
     "pedList": [

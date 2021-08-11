@@ -26,13 +26,17 @@ const managementStates = {
     PLACE_VEH: "PLACE_VEH"
 };
 
+const missionTypes = {
+    DELIVERY: "delivery"
+};
+
 let state = {
     name: managementStates.NONE,
     data: {}
 };
 
-let mission = {};
-
+let myJobs = {};
+let myMissions = {};
 let allJobs = {};
 
 on('onClientResourceStart', (name) => {
@@ -212,6 +216,37 @@ on('mrp:jobs:client:set_vehicle_spawn_location', (data) => {
     });
 });
 
+function startDeliveryMission(mission) {
+    if (!mission || !misison.data || !mission.data.job)
+        return;
+
+    let job = mission.data.job;
+
+    let oid = ObjectID(Object.values(job._id.id)).toString();
+
+    let deliveryStages = config.missionStages[missionTypes.DELIVERY];
+
+    myMissions[oid] = {
+        job: job,
+        currentStage: deliveryStages[0]
+    };
+
+    //WIP
+}
+
+onNet('mrp:jobs:client:startMission', (mission) => {
+    if (!mission)
+        return;
+
+    switch (mission.type) {
+        case missionTypes.DELIVERY:
+            startDeliveryMission(mission);
+            break;
+        default:
+            break;
+    }
+});
+
 RegisterNuiCallbackType('set_vehicle_spawn_location_confirm');
 on('__cfx_nui:set_vehicle_spawn_location_confirm', (data, cb) => {
     cb({});
@@ -304,6 +339,17 @@ on('__cfx_nui:signup', (data, cb) => {
 
     if (data.businessId) {
         emitNet('mrp:jobs:server:signup', GetPlayerServerId(PlayerId()), data.businessId);
+    }
+});
+
+RegisterNuiCallbackType('get_mission');
+on('__cfx_nui:get_mission', (data, cb) => {
+    cb({});
+
+    if (data.jobId) {
+        let job = myJobs[data.jobId];
+        if (job)
+            emitNet('mrp:jobs:server:getMission', data.jobId);
     }
 });
 
@@ -405,7 +451,11 @@ function setVehicleSpawnLocation(veh, businessId) {
 
 onNet('mrp:jobs:client:startJob', (job) => {
     console.log('Starting job...');
-    //TODO
+
+    let oid = ObjectID(Object.values(job._id.id)).toString();
+    myJobs[oid] = job;
+
+    emit('mrp_phone:showNotification', locale.startJob, 'job_start', false);
 });
 
 //management handling cycle
@@ -469,6 +519,7 @@ setInterval(() => {
 setInterval(() => {
     for (let businessId in allJobs) {
         let job = allJobs[businessId];
+        let oid = ObjectID(Object.values(job._id.id)).toString();
         let location = job.signupLocation;
         if (location) {
             let ped = PlayerPedId();
@@ -476,17 +527,39 @@ setInterval(() => {
 
             if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
                 let pedInFront = MRP_CLIENT.getPedInFront();
+                let hasJob = myJobs[oid];
                 if (pedInFront > 0) {
-                    emit('mrp:thirdeye:addMenuItem', {
-                        businessId: businessId,
-                        id: 'signup_' + businessId,
-                        text: locale.signup,
-                        action: 'https://mrp_jobs/signup'
-                    });
+                    if (hasJob) {
+                        emit('mrp:thirdeye:addMenuItem', {
+                            jobId: oid,
+                            id: 'get_mission_' + oid,
+                            text: locale.getMission,
+                            action: 'https://mrp_jobs/get_mission'
+                        });
+                        emit('mrp:thirdeye:removeMenuItem', {
+                            id: 'signup_' + businessId
+                        });
+                    } else {
+                        emit('mrp:thirdeye:addMenuItem', {
+                            businessId: businessId,
+                            id: 'signup_' + businessId,
+                            text: locale.signup,
+                            action: 'https://mrp_jobs/signup'
+                        });
+                        emit('mrp:thirdeye:removeMenuItem', {
+                            id: 'get_mission_' + oid
+                        });
+                    }
                 } else {
-                    emit('mrp:thirdeye:removeMenuItem', {
-                        id: 'signup_' + businessId
-                    });
+                    if (hasJob) {
+                        emit('mrp:thirdeye:removeMenuItem', {
+                            id: 'get_mission_' + oid
+                        });
+                    } else {
+                        emit('mrp:thirdeye:removeMenuItem', {
+                            id: 'signup_' + businessId
+                        });
+                    }
                 }
             }
         }
