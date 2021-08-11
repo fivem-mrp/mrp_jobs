@@ -29,6 +29,7 @@
     },
     "deliveryBlip": 616,
     "deliveryBlipColor": 12,
+    "deliveryLocationArea": 40,
     "jobCheckInterval": 1000,
     "pedList": [
         "a_c_boar",

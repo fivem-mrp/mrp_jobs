@@ -650,6 +650,14 @@ function handleDeliveryStages(mission) {
                 }
             }
             break;
+        case "driveToLocation":
+            let ped = PlayerPedId();
+            let wp = mission.currentWaypoint;
+            if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+                //next stage
+                nextStage(mission);
+            }
+            break;
         default:
             break;
     }
