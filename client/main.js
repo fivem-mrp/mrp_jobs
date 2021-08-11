@@ -620,14 +620,15 @@ function nextStage(mission) {
     }
 }
 
-function setWaypoint(wp) {
-    let blip = AddBlipForEntity(veh);
+function setWaypoint(wp, mission) {
+    let blip = AddBlipForCoord(wp.x, wp.y, wp.z);
     SetBlipSprite(blip, 8);
     SetBlipScale(blip, 1.0);
     SetBlipAsShortRange(blip, true);
     SetBlipColour(blip, config.deliveryBlipColor);
     SetBlipRoute(blip, true);
     SetBlipRouteColour(blip, config.deliveryBlipColor);
+    mission.waypointBlip = blip;
 }
 
 function handleDeliveryStages(mission) {
@@ -644,7 +645,8 @@ function handleDeliveryStages(mission) {
                     //get random route
                     let routeIndex = utils.getRandomInt(0, mission.job.routes.length - 1);
                     let route = mission.job.routes[routeIndex];
-                    setWaypoint(route);
+                    mission.currentWaypoint = route;
+                    setWaypoint(route, mission);
                 }
             }
             break;
