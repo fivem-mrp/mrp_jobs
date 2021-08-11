@@ -25,8 +25,10 @@
         }
     },
     "missionStages": {
-        "delivery": ["getVehicle", "driveToLocation", "getShipmentFromVehicle", "dropShipment", "getVehicle", "returnVehicle", "parkVehicle"];
+        "delivery": ["getVehicle", "driveToLocation", "getShipmentFromVehicle", "dropShipment", "getVehicle", "returnVehicle", "parkVehicle"]
     },
+    "deliveryBlip": 616,
+    "deliveryBlipColor": 12,
     "jobCheckInterval": 1000,
     "pedList": [
         "a_c_boar",

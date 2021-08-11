@@ -217,21 +217,48 @@ on('mrp:jobs:client:set_vehicle_spawn_location', (data) => {
 });
 
 function startDeliveryMission(mission) {
-    if (!mission || !misison.data || !mission.data.job)
+    if (!mission || !mission.data || !mission.data.job)
         return;
 
     let job = mission.data.job;
 
     let oid = ObjectID(Object.values(job._id.id)).toString();
 
-    let deliveryStages = config.missionStages[missionTypes.DELIVERY];
+    let deliveryStages = config.missionStages[mission.type];
+
+    let msg = locale[deliveryStages[0]];
 
     myMissions[oid] = {
+        type: mission.type,
         job: job,
+        message: msg,
         currentStage: deliveryStages[0]
     };
 
-    //WIP
+    let asyncStart = async () => {
+        RequestModel(job.vehicleSpawnLocation.modelHash);
+        while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
+            await utils.sleep(100);
+        }
+
+        let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
+        let plate = GetVehicleNumberPlateText(veh).trim();
+
+        let blip = AddBlipForEntity(veh);
+        SetBlipSprite(blip, config.deliveryBlip);
+        SetBlipScale(blip, 0.8);
+        SetBlipAsShortRange(blip, true);
+        SetBlipColour(blip, config.deliveryBlipColor);
+        SetBlipRoute(blip, true);
+        SetBlipRouteColour(blip, config.deliveryBlipColor);
+
+        //TODO group
+        emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
+
+        emit('mrp_phone:showNotification', msg, deliveryStages[0], true);
+    };
+
+    asyncStart();
 }
 
 onNet('mrp:jobs:client:startMission', (mission) => {

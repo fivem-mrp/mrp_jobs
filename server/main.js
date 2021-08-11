@@ -145,11 +145,11 @@ onNet('mrp:jobs:server:getMission', (jobId) => {
             return;
         }
 
-        MRP_SERVER.read('job', {
+        MRP_SERVER.read('business', {
             _id: job.businessId
         }, (business) => {
             if (!business) {
-                console.log(`No business found for id [${job.businessId}]`);
+                console.log(`No business found for id [${JSON.stringify(job.businessId)}]`);
                 return;
             }
 
