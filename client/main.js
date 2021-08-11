@@ -232,6 +232,7 @@ function startDeliveryMission(mission) {
         type: mission.type,
         job: job,
         message: msg,
+        currentStageIndex: 0,
         currentStage: deliveryStages[0]
     };
 
@@ -246,11 +247,14 @@ function startDeliveryMission(mission) {
 
         let blip = AddBlipForEntity(veh);
         SetBlipSprite(blip, config.deliveryBlip);
-        SetBlipScale(blip, 0.8);
+        SetBlipScale(blip, 1.0);
         SetBlipAsShortRange(blip, true);
         SetBlipColour(blip, config.deliveryBlipColor);
         SetBlipRoute(blip, true);
         SetBlipRouteColour(blip, config.deliveryBlipColor);
+
+        myMissions[oid].vehicle = veh;
+        myMissions[oid].blip = blip;
 
         //TODO group
         emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
@@ -589,6 +593,76 @@ setInterval(() => {
                     }
                 }
             }
+        }
+    }
+}, 0);
+
+function isInVehicle(missionVehicle) {
+    let ped = PlayerPedId();
+
+    let veh = GetVehiclePedIsIn(ped, false);
+
+    return veh == missionVehicle;
+}
+
+function nextStage(mission) {
+    ClearAllBlipRoutes();
+    let stages = config.missionStages[mission.type];
+    let nextStageIndex = mission.currentStageIndex + 1;
+    if (stages.length > nextStageIndex) {
+        let nextStage = stages[nextStageIndex];
+        mission.currentStage = nextStage;
+        mission.currentStageIndex = nextStageIndex;
+        mission.message = locale[nextStage];
+        emit('mrp_phone:showNotification', mission.message, nextStage, true);
+    } else {
+        //TODO last stage
+    }
+}
+
+function setWaypoint(wp) {
+    let blip = AddBlipForEntity(veh);
+    SetBlipSprite(blip, 8);
+    SetBlipScale(blip, 1.0);
+    SetBlipAsShortRange(blip, true);
+    SetBlipColour(blip, config.deliveryBlipColor);
+    SetBlipRoute(blip, true);
+    SetBlipRouteColour(blip, config.deliveryBlipColor);
+}
+
+function handleDeliveryStages(mission) {
+    if (!mission)
+        return;
+
+    switch (mission.currentStage) {
+        case "getVehicle":
+            if (isInVehicle(mission.vehicle)) {
+                //next stage
+                nextStage(mission);
+
+                if (mission.currentStage == 'driveToLocation') {
+                    //get random route
+                    let routeIndex = utils.getRandomInt(0, mission.job.routes.length - 1);
+                    let route = mission.job.routes[routeIndex];
+                    setWaypoint(route);
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+//mission loop
+setInterval(() => {
+    for (let id in myMissions) {
+        let mission = myMissions[id];
+        switch (mission.type) {
+            case missionTypes.DELIVERY:
+                handleDeliveryStages(mission);
+                break;
+            default:
+                break;
         }
     }
 }, 0);
