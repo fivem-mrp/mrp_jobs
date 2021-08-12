@@ -39,6 +39,90 @@ let myJobs = {};
 let myMissions = {};
 let allJobs = {};
 
+let stateTransitions = {
+    onGetVehicle: function() {
+        let job = this.job;
+        let asyncStart = async () => {
+            RequestModel(job.vehicleSpawnLocation.modelHash);
+            while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
+                await utils.sleep(100);
+            }
+
+            let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
+            let plate = GetVehicleNumberPlateText(veh).trim();
+
+            let blip = AddBlipForEntity(veh);
+            SetBlipSprite(blip, config.deliveryBlip);
+            SetBlipScale(blip, 1.0);
+            SetBlipAsShortRange(blip, true);
+            SetBlipColour(blip, config.deliveryBlipColor);
+            SetBlipRoute(blip, true);
+            SetBlipRouteColour(blip, config.deliveryBlipColor);
+
+            this.vehicle = veh;
+            this.blip = blip;
+
+            //TODO group
+            emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
+
+            let msg = locale[this.state];
+
+            emit('mrp_phone:showNotification', msg, deliveryStages[0], true);
+        };
+
+        asyncStart();
+    },
+    checkGettingVehicle: function() {
+        if (isInVehicle(this.vehicle)) {
+            //next stage
+            nextStage(this);
+        }
+    },
+    onDriveToLocation: function() {
+        //get random route
+        let routeIndex = utils.getRandomInt(0, this.job.routes.length - 1);
+        let route = this.job.routes[routeIndex];
+        this.currentWaypoint = route;
+        setWaypoint(route, mission);
+    },
+    checkDrivingToLocation: function() {
+        let ped = PlayerPedId();
+        let wp = this.currentWaypoint;
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+            //next stage
+            nextStage(this);
+        }
+    },
+    onGetShipmentFromVehicle: function() {
+        //do nothing for now
+    },
+    checkGettingShipment: function() {
+        let ped = PlayerPedId();
+        let [trunkposX, trunkposY, trunkposZ] = GetWorldPositionOfEntityBone(this.vehicle, GetEntityBoneIndexByName(this.vehicle, "taillight_l"));
+        MRP_CLIENT.drawText3D(trunkposX, trunkposY, trunkposZ, locale.trunk);
+        let [pX, pY, pZ] = GetEntityCoords(ped);
+        let distanceToTrunk = Vdist(pX, pY, pZ, trunkposX, trunkposY, trunkposZ);
+        if (distanceToTrunk <= config.deliveryDistanceToTrunk) {
+            MRP_CLIENT.displayHelpText(locale.deliveryGetShipmentHelp);
+            if (IsControlJustPressed(1, 38)) {
+                //next stage
+                nextStage(this);
+
+                /*
+                   ["box"] = {"anim@heists@box_carry@", "idle", "Box", AnimationOptions =
+                   {
+                       Prop = "hei_prop_heist_box",
+                       PropBone = 60309,
+                       PropPlacement = {0.025, 0.08, 0.255, -145.0, 290.0, 0.0},
+                       EmoteLoop = true,
+                       EmoteMoving = true,
+                   }},
+                */
+            }
+        }
+    }
+};
+
 on('onClientResourceStart', (name) => {
     if (name != GetCurrentResourceName())
         return;
@@ -216,6 +300,12 @@ on('mrp:jobs:client:set_vehicle_spawn_location', (data) => {
     });
 });
 
+function getCheckFunctionName(state) {
+    let stateName = state.charAt(0).toUpperCase() + state.slice(1);
+    let checkStateName = "check" + stateName;
+    return checkStateName;
+}
+
 function startDeliveryMission(mission) {
     if (!mission || !mission.data || !mission.data.job)
         return;
@@ -226,43 +316,35 @@ function startDeliveryMission(mission) {
 
     let deliveryStages = config.missionStages[mission.type];
 
-    let msg = locale[deliveryStages[0]];
+    let methods = {};
 
-    myMissions[oid] = {
+    for (let i in deliveryStages.transitions) {
+        let transition = deliveryStages.transitions[i];
+        console.log(JSON.stringify(transition));
+        let name = transition.name;
+        console.log(name);
+        let state = transition.to;
+        let transName = name.charAt(0).toUpperCase() + name.slice(1);
+        let stateName = state.charAt(0).toUpperCase() + state.slice(1);
+        let onTransitionName = "on" + transName;
+        let checkStateName = "check" + stateName;
+        let onFunction = stateTransitions[onTransitionName];
+        let checkFunction = stateTransitions[checkStateName];
+
+        methods[onTransitionName] = onFunction;
+        methods[checkStateName] = checkFunction;
+    }
+
+    let sm = deliveryStages;
+    sm.methods = methods;
+    sm.data = {
         type: mission.type,
-        job: job,
-        message: msg,
-        currentStageIndex: 0,
-        currentStage: deliveryStages[0]
+        job: job
     };
 
-    let asyncStart = async () => {
-        RequestModel(job.vehicleSpawnLocation.modelHash);
-        while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
-            await utils.sleep(100);
-        }
+    let fsm = new StateMachine(sm);
 
-        let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
-        let plate = GetVehicleNumberPlateText(veh).trim();
-
-        let blip = AddBlipForEntity(veh);
-        SetBlipSprite(blip, config.deliveryBlip);
-        SetBlipScale(blip, 1.0);
-        SetBlipAsShortRange(blip, true);
-        SetBlipColour(blip, config.deliveryBlipColor);
-        SetBlipRoute(blip, true);
-        SetBlipRouteColour(blip, config.deliveryBlipColor);
-
-        myMissions[oid].vehicle = veh;
-        myMissions[oid].blip = blip;
-
-        //TODO group
-        emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
-
-        emit('mrp_phone:showNotification', msg, deliveryStages[0], true);
-    };
-
-    asyncStart();
+    myMissions[oid] = fsm;
 }
 
 onNet('mrp:jobs:client:startMission', (mission) => {
@@ -631,60 +713,24 @@ function setWaypoint(wp, mission) {
     mission.waypointBlip = blip;
 }
 
-function handleDeliveryStages(mission) {
-    if (!mission)
+function handleStates(sm) {
+    if (!sm)
         return;
 
-    let ped = PlayerPedId();
-
-    switch (mission.currentStage) {
-        case "getVehicle":
-            if (isInVehicle(mission.vehicle)) {
-                //next stage
-                nextStage(mission);
-
-                if (mission.currentStage == 'driveToLocation') {
-                    //get random route
-                    let routeIndex = utils.getRandomInt(0, mission.job.routes.length - 1);
-                    let route = mission.job.routes[routeIndex];
-                    mission.currentWaypoint = route;
-                    setWaypoint(route, mission);
-                }
-            }
-            break;
-        case "driveToLocation":
-            let wp = mission.currentWaypoint;
-            if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
-                //next stage
-                nextStage(mission);
-            }
-            break;
-        case "getShipmentFromVehicle":
-            let [trunkposX, trunkposY, trunkposZ] = GetWorldPositionOfEntityBone(mission.vehicle, GetEntityBoneIndexByName(mission.vehicle, "taillight_l"));
-            MRP_CLIENT.drawText3D(trunkposX, trunkposY, trunkposZ, locale.trunk);
-            let [pX, pY, pZ] = GetEntityCoords(ped);
-            let distanceToTrunk = Vdist(pX, pY, pZ, trunkposX, trunkposY, trunkposZ);
-            if (distanceToTrunk <= config.deliveryDistanceToTrunk) {
-                MRP_CLIENT.displayHelpText(locale.deliveryGetShipmentHelp);
-                if (IsControlJustPressed(1, 38)) {
-                    //next stage
-                    nextStage(mission);
-
-                    /*
-                       ["box"] = {"anim@heists@box_carry@", "idle", "Box", AnimationOptions =
-                       {
-                           Prop = "hei_prop_heist_box",
-                           PropBone = 60309,
-                           PropPlacement = {0.025, 0.08, 0.255, -145.0, 290.0, 0.0},
-                           EmoteLoop = true,
-                           EmoteMoving = true,
-                       }},
-                    */
-                }
-            }
-            break;
-        default:
-            break;
+    if (sm.state == "start") {
+        let transitions = sm.transitions();
+        if (transitions && transitions.length == 1) {
+            let firstTransition = transitions[0];
+            sm[firstTransition]();
+        } else {
+            console.log('Too many start transitions');
+        }
+    } else if (sm.state == "end") {
+        //TODO end
+    } else {
+        let checkFunctionName = getCheckFunctionName(sm.state);
+        if (sm[checkFunctionName])
+            sm[checkFunctionName]();
     }
 }
 
@@ -692,12 +738,13 @@ function handleDeliveryStages(mission) {
 setInterval(() => {
     for (let id in myMissions) {
         let mission = myMissions[id];
-        switch (mission.type) {
+        handleStates(mission);
+        /*switch (mission.type) {
             case missionTypes.DELIVERY:
                 handleDeliveryStages(mission);
                 break;
             default:
                 break;
-        }
+        }*/
     }
 }, 0);

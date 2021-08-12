@@ -20,6 +20,7 @@ shared_scripts {
 
 client_scripts {
     'lib/objectid.js',
+    'lib/state-machine.min.js',
     'client/*.js',
 }
 

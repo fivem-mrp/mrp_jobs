@@ -16,18 +16,30 @@
             "routeAdded": "Route added to job",
             "startJob": "Starting a new job",
             "getMission": "Get job",
-            "getVehicle": "Get into vehicle",
-            "driveToLocation": "Drive to location",
-            "getShipmentFromVehicle": "Get shipment from vehicle",
-            "dropShipment": "Drop shipment at the location",
-            "returnVehicle": "Return vehicle",
-            "parkVehicle": "Park vehicle",
+            "gettingVehicle": "Get into vehicle",
+            "drivingToLocation": "Drive to location",
+            "gettingShipment": "Get shipment from vehicle",
+            "droppingShipment": "Drop shipment at the location",
+            "returningVehicle": "Return vehicle",
+            "parkingVehicle": "Park vehicle",
             "trunk": "Trunk",
             "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~"
         }
     },
     "missionStages": {
-        "delivery": ["getVehicle", "driveToLocation", "getShipmentFromVehicle", "dropShipment", "getVehicle", "returnVehicle", "parkVehicle"]
+        "delivery": {
+            "init": "start",
+            "transitions": [
+                { "name": "getVehicle", "from": "start", "to": "gettingVehicle"},
+                { "name": "driveToLocation", "from": "gettingVehicle", "to": "drivingToLocation"},
+                { "name": "getShipmentFromVehicle", "from": "drivingToLocation", "to": "gettingShipment"},
+                { "name": "dropShipment", "from": "gettingShipment", "to": "droppingShipment"},
+                { "name": "getVehicle", "from": "droppingShipment", "to": "gettingVehicle"},
+                { "name": "returnVehicle", "from": "gettingVehicle", "to": "returningVehicle"},
+                { "name": "parkVehicle", "from": "returningVehicle", "to": "parkingVehicle"},
+                { "name": "end", "from": "parkingVehicle", "to": "end"}
+            ]
+        }
     },
     "deliveryBlip": 616,
     "deliveryBlipColor": 12,
