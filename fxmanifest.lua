@@ -8,6 +8,7 @@ version '0.0.1'
 dependencies {
     "mrp_employment",
     "mrp_vehicle",
+    "mrp_banking",
 }
 
 files {

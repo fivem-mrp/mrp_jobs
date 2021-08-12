@@ -213,6 +213,26 @@ let stateTransitions = {
 
             let oid = ObjectID(Object.values(job._id.id)).toString();
             delete myMissions[oid];
+
+            let payCut = (this.paycut / 100) * this.cost;
+            let businessCut = this.cost - payCut;
+            let char = MRP_CLIENT.GetPlayerData();
+            //pay employee
+            emitNet('mrp:bankin:server:deposit:byowner', {
+                owner: char._id,
+                origin: job.businessId,
+                ammount: payCut
+            });
+
+            let paymsg = locale.payPrefix + payCut + "$";
+            emit('mrp_phone:showNotification', paymsg, 'job_pay', false);
+
+            //pay business
+            emitNet('mrp:bankin:server:deposit:byowner', {
+                owner: job.businessId,
+                origin: char._id,
+                ammount: businessCut
+            });
         }
     }
 };
@@ -431,7 +451,9 @@ function startDeliveryMission(mission) {
     sm.methods = methods;
     sm.data = {
         type: mission.type,
-        job: job
+        job: job,
+        cost: config.deliveryCost,
+        paycut: config.deliveryWorkerPayPercentage
     };
 
     let fsm = new StateMachine(sm);
