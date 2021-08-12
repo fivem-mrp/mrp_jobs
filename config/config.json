@@ -23,7 +23,9 @@
             "returningVehicle": "Return vehicle",
             "parkingVehicle": "Park vehicle",
             "trunk": "Trunk",
-            "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~"
+            "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~",
+            "deliveryDropoffShipmentHelp": "Press ~INPUT_PICKUP~ to drop shipment ~b~",
+            "deliveryReturnVehicleHelp": "Press ~INPUT_PICKUP~ to return vehicle ~b~"
         }
     },
     "missionStages": {
@@ -41,10 +43,13 @@
             ]
         }
     },
+    "deliveryCost": 2000,
+    "deliveryWorkerPayPercentage": 20,
     "deliveryBlip": 616,
     "deliveryBlipColor": 12,
     "deliveryLocationArea": 40,
     "deliveryDistanceToTrunk": 3,
+    "deliveryDistanceToDropoff": 3,
     "jobCheckInterval": 1000,
     "pedList": [
         "a_c_boar",

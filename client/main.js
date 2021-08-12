@@ -43,32 +43,43 @@ let stateTransitions = {
     onGetVehicle: function() {
         let job = this.job;
         let asyncStart = async () => {
-            RequestModel(job.vehicleSpawnLocation.modelHash);
-            while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
-                await utils.sleep(100);
+            if (!this.vehicle) {
+                RequestModel(job.vehicleSpawnLocation.modelHash);
+                while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
+                    await utils.sleep(100);
+                }
+
+                let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
+                let plate = GetVehicleNumberPlateText(veh).trim();
+
+                //TODO group
+                emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
+
+                this.vehicle = veh;
             }
 
-            let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
-            let plate = GetVehicleNumberPlateText(veh).trim();
+            if (!this.blip) {
+                let blip = AddBlipForEntity(this.vehicle);
+                SetBlipSprite(blip, config.deliveryBlip);
+                SetBlipScale(blip, 1.0);
+                SetBlipAsShortRange(blip, true);
+                SetBlipColour(blip, config.deliveryBlipColor);
+                this.blip = blip;
+            }
 
-            let blip = AddBlipForEntity(veh);
-            SetBlipSprite(blip, config.deliveryBlip);
-            SetBlipScale(blip, 1.0);
-            SetBlipAsShortRange(blip, true);
-            SetBlipColour(blip, config.deliveryBlipColor);
-            SetBlipRoute(blip, true);
-            SetBlipRouteColour(blip, config.deliveryBlipColor);
-
-            this.vehicle = veh;
-            this.blip = blip;
-
-            //TODO group
-            emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
+            SetBlipRoute(this.blip, true);
+            SetBlipRouteColour(this.blip, config.deliveryBlipColor);
 
             let msg = locale[this.state];
 
-            emit('mrp_phone:showNotification', msg, deliveryStages[0], true);
+            emit('mrp_phone:showNotification', msg, "job_mission_" + this.state, true);
         };
+
+        //TODO need to disable for now
+        /*if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('getVehicle');*/
 
         asyncStart();
     },
@@ -83,7 +94,12 @@ let stateTransitions = {
         let routeIndex = utils.getRandomInt(0, this.job.routes.length - 1);
         let route = this.job.routes[routeIndex];
         this.currentWaypoint = route;
-        setWaypoint(route, mission);
+        setWaypoint(route, this);
+
+        if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('driveToLocation');
     },
     checkDrivingToLocation: function() {
         let ped = PlayerPedId();
@@ -94,7 +110,10 @@ let stateTransitions = {
         }
     },
     onGetShipmentFromVehicle: function() {
-        //do nothing for now
+        if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('getShipmentFromVehicle');
     },
     checkGettingShipment: function() {
         let ped = PlayerPedId();
@@ -108,17 +127,92 @@ let stateTransitions = {
                 //next stage
                 nextStage(this);
 
-                /*
-                   ["box"] = {"anim@heists@box_carry@", "idle", "Box", AnimationOptions =
-                   {
-                       Prop = "hei_prop_heist_box",
-                       PropBone = 60309,
-                       PropPlacement = {0.025, 0.08, 0.255, -145.0, 290.0, 0.0},
-                       EmoteLoop = true,
-                       EmoteMoving = true,
-                   }},
-                */
+                let prop = MRP_CLIENT.createProp('hei_prop_heist_box', 60309, {
+                    xPos: 0.025,
+                    yPos: 0.08,
+                    zPos: 0.255,
+                    xRot: -145.0,
+                    yRot: 290.0,
+                    zRot: 0.0
+                });
+
+                this.prop = prop;
+
+                emit("mrp:lua:taskPlayAnim", ped, 'anim@heists@box_carry@', "idle", 8.0, -8.0, -1, 48, 0, false, false, false);
             }
+        }
+    },
+    onDropShipment: function() {
+        if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('dropShipment');
+    },
+    checkDroppingShipment: function() {
+        if (!this.currentWaypoint)
+            return;
+
+        let ped = PlayerPedId();
+        let [pX, pY, pZ] = GetEntityCoords(ped);
+        let distanceToDropoff = Vdist(pX, pY, pZ, this.currentWaypoint.x, this.currentWaypoint.y, this.currentWaypoint.z);
+        if (distanceToDropoff <= config.deliveryDistanceToDropoff) {
+            MRP_CLIENT.displayHelpText(locale.deliveryDropoffShipmentHelp);
+            if (IsControlJustPressed(1, 38)) {
+                //next stage
+                nextStage(this);
+
+                ClearPedSecondaryTask(ped);
+                if (this.prop) {
+                    DeleteObject(this.prop);
+                }
+            }
+        }
+    },
+    onReturnVehicle: function() {
+        let route = this.job.vehicleSpawnLocation;
+        this.currentWaypoint = route;
+        setWaypoint(route, this);
+
+        if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('returnVehicle');
+    },
+    checkReturningVehicle: function() {
+        let ped = PlayerPedId();
+        let wp = this.currentWaypoint;
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+            //next stage
+            nextStage(this);
+        }
+    },
+    onParkVehicle: function() {
+        if (!this.transitionHistory)
+            this.transitionHistory = [];
+
+        this.transitionHistory.push('parkVehicle');
+    },
+    checkParkingVehicle: function() {
+        let ped = PlayerPedId();
+        let wp = this.currentWaypoint;
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+            MRP_CLIENT.displayHelpText(locale.deliveryReturnVehicleHelp);
+            if (IsControlJustPressed(1, 38)) {
+                //next stage
+                nextStage(this);
+
+                if (this.vehicle)
+                    DeleteEntity(this.vehicle);
+            }
+        }
+    },
+    onEnd: function() {
+        //TODO pay and remove mission
+        if (this.job) {
+            let job = this.job;
+
+            let oid = ObjectID(Object.values(job._id.id)).toString();
+            delete myMissions[oid];
         }
     }
 };
@@ -320,9 +414,7 @@ function startDeliveryMission(mission) {
 
     for (let i in deliveryStages.transitions) {
         let transition = deliveryStages.transitions[i];
-        console.log(JSON.stringify(transition));
         let name = transition.name;
-        console.log(name);
         let state = transition.to;
         let transName = name.charAt(0).toUpperCase() + name.slice(1);
         let stateName = state.charAt(0).toUpperCase() + state.slice(1);
@@ -689,16 +781,20 @@ function isInVehicle(missionVehicle) {
 
 function nextStage(mission) {
     ClearAllBlipRoutes();
-    let stages = config.missionStages[mission.type];
-    let nextStageIndex = mission.currentStageIndex + 1;
-    if (stages.length > nextStageIndex) {
-        let nextStage = stages[nextStageIndex];
-        mission.currentStage = nextStage;
-        mission.currentStageIndex = nextStageIndex;
-        mission.message = locale[nextStage];
-        emit('mrp_phone:showNotification', mission.message, nextStage, true);
-    } else {
-        //TODO last stage
+
+    let transitions = mission.transitions();
+    for (let i in transitions) {
+        let trans = transitions[i];
+        if (!mission.transitionHistory || mission.transitionHistory.indexOf(trans) == -1) {
+            mission[trans]();
+
+            let msg = locale[mission.state];
+
+            if (msg)
+                emit('mrp_phone:showNotification', msg, "job_mission_" + mission.state, true);
+
+            break;
+        }
     }
 }
 
@@ -739,12 +835,5 @@ setInterval(() => {
     for (let id in myMissions) {
         let mission = myMissions[id];
         handleStates(mission);
-        /*switch (mission.type) {
-            case missionTypes.DELIVERY:
-                handleDeliveryStages(mission);
-                break;
-            default:
-                break;
-        }*/
     }
 }, 0);
