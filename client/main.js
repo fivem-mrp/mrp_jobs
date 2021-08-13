@@ -207,7 +207,6 @@ let stateTransitions = {
         }
     },
     onEnd: function() {
-        //TODO pay and remove mission
         if (this.job) {
             let job = this.job;
 
@@ -253,26 +252,33 @@ on('onClientResourceStart', (name) => {
                     y: sl.y,
                     z: sl.z,
                     heading: sl.heading
+                }, (ped) => {
+                    let obj = {
+                        businessId: oid,
+                        signupLocation: {
+                            x: sl.x,
+                            y: sl.y,
+                            z: sl.z,
+                            heading: sl.heading,
+                            modelHash: sl.modelHash
+                        },
+                        netId: PedToNet(ped)
+                    };
+
+                    if (r.vehicleSpawnLocation)
+                        obj.vehicleSpawnLocation = r.vehicleSpawnLocation;
+
+                    emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), obj, false);
                 });
-
-                let obj = {
-                    businessId: oid,
-                    signupLocation: {
-                        x: sl.x,
-                        y: sl.y,
-                        z: sl.z,
-                        heading: sl.heading,
-                        modelHash: sl.modelHash
-                    }
-                };
-
-                if (r.vehicleSpawnLocation)
-                    obj.vehicleSpawnLocation = r.vehicleSpawnLocation;
-
-                emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), obj, false);
             }
         }
     });
+});
+
+onNet('mrp:jobs:client:registerJob', (r) => {
+    let oid = ObjectID(Object.values(r.businessId.id)).toString();
+    console.log(`Register job for business [${oid}]`);
+    allJobs[oid] = r;
 });
 
 function fillRadialMenu(businesses) {
@@ -642,10 +648,9 @@ function networkPed(ped, businessId) {
             z: pedZ,
             heading: heading,
             modelHash: modelHash
-        }
+        },
+        netId: netId
     };
-
-    allJobs[businessId] = obj;
 
     emitNet('mrp:jobs:server:registerNetPed', GetPlayerServerId(PlayerId()), obj);
 }
@@ -746,6 +751,10 @@ setInterval(() => {
 setInterval(() => {
     for (let businessId in allJobs) {
         let job = allJobs[businessId];
+
+        if (!job || !job._id)
+            continue;
+
         let oid = ObjectID(Object.values(job._id.id)).toString();
         let location = job.signupLocation;
         if (location) {

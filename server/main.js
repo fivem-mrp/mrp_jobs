@@ -20,19 +20,39 @@ let signupLocations = {};
 
 onNet('mrp:jobs:server:registerNetPed', (source, obj, persist = true) => {
     console.log(`Register net PED ${JSON.stringify(obj)}`);
-    signupLocations[obj.businessId] = obj;
+    if (signupLocations[obj.businessId]) {
+        signupLocations[obj.businessId].signupLocation = obj.signupLocation;
+        if (obj.vehicleSpawnLocation)
+            signupLocations[obj.businessId].vehicleSpawnLocation = obj.vehicleSpawnLocation;
+        if (obj.netId)
+            signupLocations[obj.businessId].netId = obj.netId;
+    } else {
+        signupLocations[obj.businessId] = obj;
+    }
 
-    let bid = ObjectID.createFromHexString(obj.businessId);
+    let bid = ObjectID(obj.businessId);
+
+    let query = {
+        businessId: bid
+    };
 
     let cloneObj = JSON.parse(JSON.stringify(obj));
     cloneObj.businessId = bid;
     delete cloneObj.netId;
 
     if (persist)
-        MRP_SERVER.update('job', cloneObj, {
-            businessId: obj.businessId
-        }, null, (r) => {
-            console.log('job created');
+        MRP_SERVER.update('job', cloneObj, query, null, (r) => {
+            if (r.modifiedCount > 0 || r.upsertedCount > 0) {
+                console.log('job created/updated');
+                MRP_SERVER.read('job', {
+                    businessId: bid
+                }, (job) => {
+                    if (!job)
+                        return;
+
+                    emitNet('mrp:jobs:client:registerJob', -1, job);
+                });
+            }
         });
 });
 
@@ -40,9 +60,14 @@ onNet('mrp:jobs:server:unregisterNetPed', (source, businessId) => {
     console.log(`Unregister net PED for ${businessId}`);
     if (signupLocations[businessId]) {
         let jobObj = signupLocations[businessId];
-        let entity = NetworkGetEntityFromNetworkId(jobObj.netId);
-        DeleteEntity(entity);
-        delete signupLocations[businessId];
+        console.log(`Signup location found [${JSON.stringify(jobObj)}]`);
+        if (jobObj.netId) {
+            console.log(`netId exists [${jobObj.netId}]`);
+            let entity = NetworkGetEntityFromNetworkId(jobObj.netId);
+            DeleteEntity(entity);
+            delete jobObj.netId;
+            //delete signupLocations[businessId];
+        }
     }
 });
 
@@ -69,7 +94,17 @@ onNet('mrp:jobs:server:registerVehicleSpawnLocation', (source, obj) => {
     MRP_SERVER.update('job', cloneObj, {
         businessId: bid
     }, {}, (r) => {
-        console.log('job updated');
+        if (r.modifiedCount > 0 || r.upsertedCount > 0) {
+            console.log('job updated');
+            MRP_SERVER.read('job', {
+                businessId: bid
+            }, (job) => {
+                if (!job)
+                    return;
+
+                emitNet('mrp:jobs:client:registerJob', -1, job);
+            });
+        }
     });
 });
 
@@ -128,6 +163,7 @@ onNet('mrp:jobs:server:addDeliveryDestination', (position, businessId) => {
                 ]
             });
             console.log('route for job added');
+            //TODO send to all clients ASAP simmilar to registering net PEDs
         });
     });
 });
@@ -189,7 +225,7 @@ setInterval(() => {
                     }, (r) => {
                         if (!r)
                             return;
-                        console.log(`Starting job [${JSON.stringify(r)}]`);
+                        console.log(`Starting job [${JSON.stringify(r)}] for player ID [${source}]`);
                         business.jobInProgress = true;
                         emitNet('mrp:jobs:client:startJob', source, r);
                     });
