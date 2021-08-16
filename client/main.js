@@ -236,10 +236,7 @@ let stateTransitions = {
     }
 };
 
-on('onClientResourceStart', (name) => {
-    if (name != GetCurrentResourceName())
-        return;
-
+onNet('mrp:spawn', () => {
     MRP_CLIENT.TriggerServerCallback('mrp:jobs:server:getJob', [undefined], (result) => {
         for (let r of result) {
             let oid = ObjectID(Object.values(r.businessId.id)).toString();
