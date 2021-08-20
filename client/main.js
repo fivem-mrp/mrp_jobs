@@ -23,7 +23,8 @@ let creatorBusinesses = [];
 const managementStates = {
     NONE: "NONE",
     PLACE_NPC: "PLACE_NPC",
-    PLACE_VEH: "PLACE_VEH"
+    PLACE_VEH: "PLACE_VEH",
+    REMOVE_DELIVERY_ROUTE: "REMOVE_DELIVERY_ROUTE"
 };
 
 const missionTypes = {
@@ -295,6 +296,12 @@ function fillRadialMenu(businesses) {
                 });
 
                 submenu.push({
+                    id: 'job_remove_delivery_destination_' + id,
+                    text: locale.removeDeliveryDestination,
+                    action: 'https://mrp_jobs/remove_delivery_destination'
+                });
+
+                submenu.push({
                     id: "signup_" + id,
                     text: locale.setSignupLocation,
                     action: 'https://mrp_jobs/set_signup_location'
@@ -361,6 +368,56 @@ on('__cfx_nui:add_delivery_destination', (data, cb) => {
             z: coordZ
         }, id);
     }
+});
+
+RegisterNuiCallbackType('remove_delivery_destination');
+on('__cfx_nui:remove_delivery_destination', (data, cb) => {
+    cb({});
+
+    let id = data.id.replaceAll("job_remove_delivery_destination_", "");
+
+    MRP_CLIENT.TriggerServerCallback('mrp:jobs:server:getJobById', [id], (result) => {
+        if (!result) {
+            console.log(`No job found for business id [${id}]`);
+            return;
+        }
+
+        if (!result.routes || result.routes.length == 0) {
+            console.log('No routes yet');
+            return;
+        }
+
+        let i = 1;
+        let blips = [];
+        for (let r of result.routes) {
+            let blip = AddBlipForCoord(r.x, r.y, r.z);
+            SetBlipColour(blip, config.waypointBlipColor);
+            SetBlipAsShortRange(blip, true);
+            ShowNumberOnBlip(blip, i);
+            blips.push({
+                blip: blip,
+                x: r.x,
+                y: r.y,
+                z: r.z
+            });
+            i++;
+        }
+
+        state = {
+            name: managementStates.REMOVE_DELIVERY_ROUTE,
+            data: {
+                businessId: id,
+                blips: blips
+            }
+        };
+
+        emit('chat:addMessage', {
+            template: '<div class="chat-message nonemergency">{0}</div>',
+            args: [
+                locale.pointsAddedToMap
+            ]
+        });
+    });
 });
 
 RegisterNuiCallbackType('set_signup_location');
@@ -739,6 +796,32 @@ setInterval(() => {
                 EnableControlAction(1, 200, true);
             }
             break;
+        case managementStates.REMOVE_DELIVERY_ROUTE:
+            if (IsWaypointActive()) {
+                let [waypointCoordsX, waypointCoordsY, waypointCoordsZ] = GetBlipInfoIdCoord(GetFirstBlipInfoId(8));
+                SetWaypointOff();
+                if (state.data && state.data.blips) {
+                    let foundBlip;
+                    for (let blipData of state.data.blips) {
+                        let [blipX, blipY, blipZ] = GetBlipInfoIdCoord(blipData.blip);
+                        if (blipX == waypointCoordsX && blipY == waypointCoordsY) {
+                            foundBlip = blipData;
+                        }
+                        RemoveBlip(blipData.blip);
+                    }
+
+                    if (foundBlip) {
+                        emitNet('mrp:jobs:server:removeDeliveryDestination', {
+                            x: foundBlip.x,
+                            y: foundBlip.y,
+                            z: foundBlip.z
+                        }, state.data.businessId);
+                    }
+                }
+
+                resetState();
+            }
+            break;
         default:
             break;
     }
@@ -865,3 +948,34 @@ setInterval(() => {
         handleStates(mission);
     }
 }, 0);
+
+//TESTING ONLY
+RegisterCommand('spawnCart', () => {
+    let exec = async () => {
+        let ped = PlayerPedId();
+
+        let [playerX, playerY, playerZ] = GetEntityCoords(ped, true);
+        let [offsetX, offsetY, offsetZ] = GetOffsetFromEntityInWorldCoords(ped, 0, 5.0, 0);
+
+        let dx = playerX - offsetX;
+        let dy = playerY - offsetY;
+
+        let heading = GetHeadingFromVector_2d(dx, dy);
+
+        //bicycle
+        let bicycleHash = GetHashKey('cruiser');
+        RequestModel(bicycleHash);
+        while (!HasModelLoaded(bicycleHash)) {
+            await utils.sleep(100);
+        }
+
+        let veh = CreateVehicle(bicycleHash, offsetX, offsetY, offsetZ, heading, true, true);
+
+        //cart
+        let cart = CreateObject(GetHashKey('prop_burgerstand_01'), offsetX, offsetY, offsetZ, true);
+
+        //attach ... yes bicecles have exhaust
+        AttachEntityToEntity(cart, veh, GetEntityBoneIndexByName(veh, 'exhaust'), 0.0, -1.8, -0.575, 0.0, 0.0, -90.0, true, false, true, false, 0, true);
+    };
+    exec();
+});

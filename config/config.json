@@ -13,7 +13,9 @@
             "errSetSignupFirst": "Set signup location first",
             "signup": "Signup",
             "addDeliveryDestination": "Add delivery destination",
+            "removeDeliveryDestination": "Remove delivery destination",
             "routeAdded": "Route added to job",
+            "routeRemoved": "Route removed from job",
             "startJob": "Starting a new job",
             "getMission": "Get job",
             "gettingVehicle": "Get into vehicle",
@@ -26,9 +28,11 @@
             "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~",
             "deliveryDropoffShipmentHelp": "Press ~INPUT_PICKUP~ to drop shipment ~b~",
             "deliveryReturnVehicleHelp": "Press ~INPUT_PICKUP~ to return vehicle ~b~",
-            "payPrefix": "You have been paid "
+            "payPrefix": "You have been paid ",
+            "pointsAddedToMap": "Waypoints added to map click them to remove"
         }
     },
+    "waypointBlipColor": 5,
     "missionStages": {
         "delivery": {
             "init": "start",

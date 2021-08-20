@@ -114,6 +114,16 @@ onNet('mrp:jobs:server:getJob', (source, data, uuid) => {
     });
 });
 
+onNet('mrp:jobs:server:getJobById', (source, businessId, uuid) => {
+    let bid = ObjectID.createFromHexString(businessId);
+
+    MRP_SERVER.read('job', {
+        businessId: bid
+    }, (result) => {
+        emitNet('mrp:jobs:server:getJobById:response', source, result, uuid);
+    });
+});
+
 onNet('mrp:jobs:server:signup', (source, businessId) => {
     let char = MRP_SERVER.getSpawnedCharacter(source);
     if (!char)
@@ -163,6 +173,44 @@ onNet('mrp:jobs:server:addDeliveryDestination', (position, businessId) => {
                 ]
             });
             console.log('route for job added');
+            //TODO send to all clients ASAP simmilar to registering net PEDs
+        });
+    });
+});
+
+onNet('mrp:jobs:server:removeDeliveryDestination', (position, businessId) => {
+    let bid = ObjectID.createFromHexString(businessId);
+
+    let src = global.source;
+
+    MRP_SERVER.read('job', {
+        businessId: bid
+    }, (r) => {
+        if (!r)
+            return;
+
+        if (!r.routes)
+            r.routes = [];
+
+        let newRoutes = [];
+        for (let route of r.routes) {
+            if (route.x != position.x || route.y != position.y || route.z != position.z) {
+                newRoutes.push(route);
+            }
+        }
+
+        r.routes = newRoutes;
+
+        MRP_SERVER.update('job', r, {
+            _id: r._id
+        }, null, (result) => {
+            emitNet('chat:addMessage', src, {
+                template: '<div class="chat-message nonemergency">{0}</div>',
+                args: [
+                    locale.routeRemoved
+                ]
+            });
+            console.log('route for job removed');
             //TODO send to all clients ASAP simmilar to registering net PEDs
         });
     });
