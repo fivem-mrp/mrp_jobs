@@ -28,7 +28,8 @@ const managementStates = {
 };
 
 const missionTypes = {
-    DELIVERY: "delivery"
+    DELIVERY: "delivery",
+    CARGO: "cargo"
 };
 
 let state = {
