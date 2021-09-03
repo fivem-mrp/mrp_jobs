@@ -124,6 +124,19 @@ onNet('mrp:jobs:server:getJobById', (source, businessId, uuid) => {
     });
 });
 
+on("playerDropped", (reason) => {
+    console.log(`Player ${GetPlayerName(global.source)} dropped removing signups`);
+    let char = MRP_SERVER.getSpawnedCharacter(global.source);
+    if (!char)
+        return;
+
+    playerSignups[char.stateId] = null;
+});
+
+on('mrp:spawn', (source, characterToUse, spawnPoint) => {
+    playerSignups[characterToUse.stateId] = null;
+});
+
 onNet('mrp:jobs:server:signup', (source, businessId) => {
     let char = MRP_SERVER.getSpawnedCharacter(source);
     if (!char)
