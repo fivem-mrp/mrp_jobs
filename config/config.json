@@ -53,6 +53,7 @@
     "deliveryBlip": 616,
     "deliveryBlipColor": 12,
     "deliveryLocationArea": 40,
+    "deliverySignupArea": 2,
     "deliveryDistanceToTrunk": 3,
     "deliveryDistanceToDropoff": 3,
     "jobCheckInterval": 1000,

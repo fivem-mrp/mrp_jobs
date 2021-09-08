@@ -315,7 +315,7 @@ function fillRadialMenu(businesses) {
                 });
 
                 emit('mrp:radial_menu:addMenuItem', {
-                    id: 'job_management',
+                    id: 'job_management_' + id,
                     text: business.name,
                     submenu: submenu,
                     persist: true,
@@ -842,7 +842,7 @@ setInterval(() => {
             let ped = PlayerPedId();
             let modelHash = location.modelHash;
 
-            if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
+            if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z, config.deliverySignupArea) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
                 let pedInFront = MRP_CLIENT.getPedInFront();
                 let hasJob = myJobs[oid];
                 if (pedInFront > 0) {
