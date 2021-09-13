@@ -29,7 +29,8 @@ const managementStates = {
 
 const missionTypes = {
     DELIVERY: "delivery",
-    CARGO: "cargo"
+    CARGO: "cargo",
+    CARTING: "carting"
 };
 
 let state = {
@@ -284,43 +285,47 @@ function fillRadialMenu(businesses) {
     if (businesses && businesses.length > 0) {
         for (let business of businesses) {
             let submenu = [];
-            if (business && business.type == "delivery") {
+            if (business) {
                 let id = "set_signup_location";
                 if (business._id && business._id.id) {
                     id = ObjectID(Object.values(business._id.id)).toString();
                 }
 
-                submenu.push({
-                    id: 'job_add_delivery_destination_' + id,
-                    text: locale.addDeliveryDestination,
-                    action: 'https://mrp_jobs/add_delivery_destination'
-                });
+                if (business.type == missionTypes.DELIVERY) {
+                    submenu.push({
+                        id: 'job_add_delivery_destination_' + id,
+                        text: locale.addDeliveryDestination,
+                        action: 'https://mrp_jobs/add_delivery_destination'
+                    });
 
-                submenu.push({
-                    id: 'job_remove_delivery_destination_' + id,
-                    text: locale.removeDeliveryDestination,
-                    action: 'https://mrp_jobs/remove_delivery_destination'
-                });
+                    submenu.push({
+                        id: 'job_remove_delivery_destination_' + id,
+                        text: locale.removeDeliveryDestination,
+                        action: 'https://mrp_jobs/remove_delivery_destination'
+                    });
+                }
 
-                submenu.push({
-                    id: "signup_" + id,
-                    text: locale.setSignupLocation,
-                    action: 'https://mrp_jobs/set_signup_location'
-                });
+                if (business.type == missionTypes.DELIVERY || business.type == missionTypes.CARTING) {
+                    submenu.push({
+                        id: "signup_" + id,
+                        text: locale.setSignupLocation,
+                        action: 'https://mrp_jobs/set_signup_location'
+                    });
 
-                submenu.push({
-                    id: "spawn_" + id,
-                    text: locale.setVehicleSpawnLocation,
-                    action: 'https://mrp_jobs/set_vehicle_spawn_location'
-                });
+                    submenu.push({
+                        id: "spawn_" + id,
+                        text: locale.setVehicleSpawnLocation,
+                        action: 'https://mrp_jobs/set_vehicle_spawn_location'
+                    });
 
-                emit('mrp:radial_menu:addMenuItem', {
-                    id: 'job_management_' + id,
-                    text: business.name,
-                    submenu: submenu,
-                    persist: true,
-                    action: 'https://mrp_jobs/job_management'
-                });
+                    emit('mrp:radial_menu:addMenuItem', {
+                        id: 'job_management_' + id,
+                        text: business.name,
+                        submenu: submenu,
+                        persist: true,
+                        action: 'https://mrp_jobs/job_management'
+                    });
+                }
             }
         }
     }
