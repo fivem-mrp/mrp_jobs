@@ -47,18 +47,24 @@ let stateTransitions = {
         let job = this.job;
         let asyncStart = async () => {
             if (!this.vehicle) {
-                RequestModel(job.vehicleSpawnLocation.modelHash);
-                while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
-                    await utils.sleep(100);
+                if (this.type == missionTypes.CARTING) {
+                    let [veh, cart] = await spawnCart(job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading);
+                    //TODO might need to store cart too
+                    this.vehicle = veh;
+                } else {
+                    RequestModel(job.vehicleSpawnLocation.modelHash);
+                    while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
+                        await utils.sleep(100);
+                    }
+
+                    let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
+                    let plate = GetVehicleNumberPlateText(veh).trim();
+
+                    //TODO group
+                    emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
+
+                    this.vehicle = veh;
                 }
-
-                let veh = CreateVehicle(job.vehicleSpawnLocation.modelHash, job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading, true, true);
-                let plate = GetVehicleNumberPlateText(veh).trim();
-
-                //TODO group
-                emitNet('mrp:vehicle:server:giveKeys', [GetPlayerServerId(PlayerId())], plate);
-
-                this.vehicle = veh;
             }
 
             if (!this.blip) {
@@ -969,33 +975,36 @@ setInterval(() => {
     }
 }, 0);
 
+let spawnCart = async (x, y, z, heading) => {
+    //bicycle
+    let bicycleHash = GetHashKey('cruiser');
+    RequestModel(bicycleHash);
+    while (!HasModelLoaded(bicycleHash)) {
+        await utils.sleep(100);
+    }
+
+    let veh = CreateVehicle(bicycleHash, x, y, z, heading, true, true);
+
+    //cart
+    let cart = CreateObject(GetHashKey('prop_burgerstand_01'), x, y, z, true);
+
+    //attach ... yes bicecles have exhaust
+    AttachEntityToEntity(cart, veh, GetEntityBoneIndexByName(veh, 'exhaust'), 0.0, -1.8, -0.575, 0.0, 0.0, -90.0, true, false, true, false, 0, true);
+
+    return [veh, cart];
+}
+
 //TESTING ONLY
 RegisterCommand('spawnCart', () => {
-    let exec = async () => {
-        let ped = PlayerPedId();
+    let ped = PlayerPedId();
 
-        let [playerX, playerY, playerZ] = GetEntityCoords(ped, true);
-        let [offsetX, offsetY, offsetZ] = GetOffsetFromEntityInWorldCoords(ped, 0, 5.0, 0);
+    let [playerX, playerY, playerZ] = GetEntityCoords(ped, true);
+    let [offsetX, offsetY, offsetZ] = GetOffsetFromEntityInWorldCoords(ped, 0, 5.0, 0);
 
-        let dx = playerX - offsetX;
-        let dy = playerY - offsetY;
+    let dx = playerX - offsetX;
+    let dy = playerY - offsetY;
 
-        let heading = GetHeadingFromVector_2d(dx, dy);
+    let heading = GetHeadingFromVector_2d(dx, dy);
 
-        //bicycle
-        let bicycleHash = GetHashKey('cruiser');
-        RequestModel(bicycleHash);
-        while (!HasModelLoaded(bicycleHash)) {
-            await utils.sleep(100);
-        }
-
-        let veh = CreateVehicle(bicycleHash, offsetX, offsetY, offsetZ, heading, true, true);
-
-        //cart
-        let cart = CreateObject(GetHashKey('prop_burgerstand_01'), offsetX, offsetY, offsetZ, true);
-
-        //attach ... yes bicecles have exhaust
-        AttachEntityToEntity(cart, veh, GetEntityBoneIndexByName(veh, 'exhaust'), 0.0, -1.8, -0.575, 0.0, 0.0, -90.0, true, false, true, false, 0, true);
-    };
-    exec();
+    spawnCart(offsetX, offsetY, offsetZ, heading);
 });
