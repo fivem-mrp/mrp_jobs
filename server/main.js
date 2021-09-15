@@ -138,6 +138,7 @@ on('mrp:spawn', (source, characterToUse, spawnPoint) => {
 });
 
 onNet('mrp:jobs:server:signup', (source, businessId) => {
+    console.debug(`Player ${source} is signup to business [${businessId}]`);
     let char = MRP_SERVER.getSpawnedCharacter(source);
     if (!char)
         return;
@@ -147,6 +148,7 @@ onNet('mrp:jobs:server:signup', (source, businessId) => {
         signups = {};
 
     if (!signups[businessId]) {
+        console.debug(`Not signed up yet`);
         let bid = ObjectID.createFromHexString(businessId);
         MRP_SERVER.read('business', {
             _id: bid
@@ -154,6 +156,7 @@ onNet('mrp:jobs:server:signup', (source, businessId) => {
             if (!business)
                 return;
 
+            console.debug(`Found business`);
             signups[businessId] = business;
             playerSignups[char.stateId] = signups;
         });
@@ -230,6 +233,7 @@ onNet('mrp:jobs:server:removeDeliveryDestination', (position, businessId) => {
 });
 
 onNet('mrp:jobs:server:getMission', (jobId) => {
+    console.debug(`mrp:jobs:server:getMission for [${jobId}]`);
     let src = global.source;
 
     let jid = ObjectID.createFromHexString(jobId);
@@ -257,6 +261,8 @@ onNet('mrp:jobs:server:getMission', (jobId) => {
                 }
             };
 
+            console.debug(`Got business starting mission...`);
+
             emitNet('mrp:jobs:client:startMission', src, mission);
         });
     });
@@ -279,7 +285,7 @@ setInterval(() => {
         if (char) {
             for (let businessIdStr in signups) {
                 let business = signups[businessIdStr];
-                if (!business.jobInProgress && business.type == DELIVERY_JOB) {
+                if (!business.jobInProgress) {
                     //doesn't have delivery job started yet give one
                     MRP_SERVER.read('job', {
                         businessId: business._id

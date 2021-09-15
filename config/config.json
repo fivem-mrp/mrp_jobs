@@ -46,6 +46,17 @@
                 { "name": "parkVehicle", "from": "returningVehicle", "to": "parkingVehicle"},
                 { "name": "end", "from": "parkingVehicle", "to": "end"}
             ]
+        },
+        "carting": {
+            "init": "start",
+            "transitions": [
+                { "name": "getVehicle", "from": "start", "to": "gettingVehicle"},
+                { "name": "setupCorner", "from": "gettingVehicle", "to": "settingUpCorner"},
+                { "name": "corner", "from": "settingUpCorner", "to": "cornering"},
+                { "name": "returnVehicle", "from": "cornering", "to": "returningVehicle"},
+                { "name": "parkVehicle", "from": "returningVehicle", "to": "parkingVehicle"},
+                { "name": "end", "from": "parkingVehicle", "to": "end"}
+            ]
         }
     },
     "deliveryCost": 2000,

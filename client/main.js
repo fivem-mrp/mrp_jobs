@@ -239,7 +239,7 @@ let stateTransitions = {
     }
 };
 
-onNet('mrp:spawn', () => {
+let getAllJobs = () => {
     MRP_CLIENT.TriggerServerCallback('mrp:jobs:server:getJob', [undefined], (result) => {
         for (let r of result) {
             let oid = ObjectID(Object.values(r.businessId.id)).toString();
@@ -273,6 +273,10 @@ onNet('mrp:spawn', () => {
             }
         }
     });
+};
+
+onNet('mrp:spawn', () => {
+    getAllJobs();
 });
 
 onNet('mrp:jobs:client:registerJob', (r) => {
@@ -486,7 +490,7 @@ function getCheckFunctionName(state) {
     return checkStateName;
 }
 
-function startDeliveryMission(mission) {
+function startMission(mission, opt) {
     if (!mission || !mission.data || !mission.data.job)
         return;
 
@@ -494,12 +498,12 @@ function startDeliveryMission(mission) {
 
     let oid = ObjectID(Object.values(job._id.id)).toString();
 
-    let deliveryStages = config.missionStages[mission.type];
+    let stages = config.missionStages[mission.type];
 
     let methods = {};
 
-    for (let i in deliveryStages.transitions) {
-        let transition = deliveryStages.transitions[i];
+    for (let i in stages.transitions) {
+        let transition = stages.transitions[i];
         let name = transition.name;
         let state = transition.to;
         let transName = name.charAt(0).toUpperCase() + name.slice(1);
@@ -513,13 +517,13 @@ function startDeliveryMission(mission) {
         methods[checkStateName] = checkFunction;
     }
 
-    let sm = deliveryStages;
+    let sm = stages;
     sm.methods = methods;
     sm.data = {
         type: mission.type,
         job: job,
-        cost: config.deliveryCost,
-        paycut: config.deliveryWorkerPayPercentage
+        cost: opt.cost,
+        paycut: opt.paycut
     };
 
     let fsm = new StateMachine(sm);
@@ -528,12 +532,19 @@ function startDeliveryMission(mission) {
 }
 
 onNet('mrp:jobs:client:startMission', (mission) => {
+    console.debug('mrp:jobs:client:startMission');
     if (!mission)
         return;
 
     switch (mission.type) {
         case missionTypes.DELIVERY:
-            startDeliveryMission(mission);
+            startMission(mission, {
+                cost: config.deliveryCost,
+                paycut: config.deliveryWorkerPayPercentage
+            });
+            break;
+        case missionTypes.CARTING:
+            startMission(mission, {});
             break;
         default:
             break;
@@ -639,7 +650,9 @@ RegisterNuiCallbackType('get_mission');
 on('__cfx_nui:get_mission', (data, cb) => {
     cb({});
 
+    console.log(`Get mission`);
     if (data.jobId) {
+        console.log(`Getting job [${data.jobId}]`);
         let job = myJobs[data.jobId];
         if (job)
             emitNet('mrp:jobs:server:getMission', data.jobId);
@@ -742,9 +755,8 @@ function setVehicleSpawnLocation(veh, businessId) {
 }
 
 onNet('mrp:jobs:client:startJob', (job) => {
-    console.log('Starting job...');
-
     let oid = ObjectID(Object.values(job._id.id)).toString();
+    console.log(`Starting job... ${oid}`);
     myJobs[oid] = job;
 
     emit('mrp_phone:showNotification', locale.startJob, 'job_start', false);
@@ -838,8 +850,10 @@ setInterval(() => {
     for (let businessId in allJobs) {
         let job = allJobs[businessId];
 
-        if (!job || !job._id)
+        if (!job || !job._id) {
+            console.debug("No job or job._id");
             continue;
+        }
 
         let oid = ObjectID(Object.values(job._id.id)).toString();
         let location = job.signupLocation;
