@@ -24,12 +24,16 @@
             "droppingShipment": "Drop shipment at the location",
             "returningVehicle": "Return vehicle",
             "parkingVehicle": "Park vehicle",
+            "settingUpCorner": "Setup corner shop",
+            "cornering": "Wait for customers",
             "trunk": "Trunk",
             "deliveryGetShipmentHelp": "Press ~INPUT_PICKUP~ to pickup shipment ~b~",
             "deliveryDropoffShipmentHelp": "Press ~INPUT_PICKUP~ to drop shipment ~b~",
             "deliveryReturnVehicleHelp": "Press ~INPUT_PICKUP~ to return vehicle ~b~",
             "payPrefix": "You have been paid ",
-            "pointsAddedToMap": "Waypoints added to map click them to remove"
+            "pointsAddedToMap": "Waypoints added to map click them to remove",
+            "startCornering": "Start selling",
+            "stopCornering": "Stop selling"
         }
     },
     "waypointBlipColor": 5,

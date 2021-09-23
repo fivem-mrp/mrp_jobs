@@ -98,6 +98,42 @@ let stateTransitions = {
             nextStage(this);
         }
     },
+    onSetupCorner: function() {
+        console.debug(`Setup corner`);
+        let oid = ObjectID(Object.values(this.job._id.id)).toString();
+        emit('mrp:radial_menu:addMenuItem', {
+            id: 'job_start_cornering_' + oid,
+            text: locale.startCornering,
+            persist: true,
+            action: 'https://mrp_jobs/job_start_cornering'
+        });
+    },
+    checkSettingUpCorner: function() {
+        if (this.cornerSetup) {
+            //next stage
+            nextStage(this);
+        }
+    },
+    onCorner: function() {
+        //TODO
+        let oid = ObjectID(Object.values(this.job._id.id)).toString();
+        emit('mrp:radial_menu:removeMenuItem', {
+            id: 'job_start_cornering_' + oid
+        });
+        emit('mrp:radial_menu:addMenuItem', {
+            id: 'job_stop_cornering_' + oid,
+            text: locale.stopCornering,
+            persist: true,
+            action: 'https://mrp_jobs/job_stop_cornering'
+        });
+    },
+    checkCornering: function() {
+        if (!this.cornerSetup) {
+            //next stage
+            nextStage(this);
+            return;
+        }
+    },
     onDriveToLocation: function() {
         //get random route
         let routeIndex = utils.getRandomInt(0, this.job.routes.length - 1);
@@ -222,25 +258,27 @@ let stateTransitions = {
             let oid = ObjectID(Object.values(job._id.id)).toString();
             delete myMissions[oid];
 
-            let payCut = (this.paycut / 100) * this.cost;
-            let businessCut = this.cost - payCut;
-            let char = MRP_CLIENT.GetPlayerData();
-            //pay employee
-            emitNet('mrp:bankin:server:deposit:byowner', {
-                owner: char._id,
-                origin: job.businessId,
-                ammount: payCut
-            });
+            if (this.paycut && this.cost) {
+                let payCut = (this.paycut / 100) * this.cost;
+                let businessCut = this.cost - payCut;
+                let char = MRP_CLIENT.GetPlayerData();
+                //pay employee
+                emitNet('mrp:bankin:server:deposit:byowner', {
+                    owner: char._id,
+                    origin: job.businessId,
+                    ammount: payCut
+                });
 
-            let paymsg = locale.payPrefix + payCut + "$";
-            emit('mrp_phone:showNotification', paymsg, 'job_pay', false);
+                let paymsg = locale.payPrefix + payCut + "$";
+                emit('mrp_phone:showNotification', paymsg, 'job_pay', false);
 
-            //pay business
-            emitNet('mrp:bankin:server:deposit:byowner', {
-                owner: job.businessId,
-                origin: char._id,
-                ammount: businessCut
-            });
+                //pay business
+                emitNet('mrp:bankin:server:deposit:byowner', {
+                    owner: job.businessId,
+                    origin: char._id,
+                    ammount: businessCut
+                });
+            }
         }
     }
 };
@@ -368,6 +406,24 @@ on('__cfx_nui:set_signup_location_cancel', (data, cb) => {
 RegisterNuiCallbackType('job_management');
 on('__cfx_nui:job_management', (data, cb) => {
     cb({});
+});
+
+RegisterNuiCallbackType('job_start_cornering');
+on('__cfx_nui:job_start_cornering', (data, cb) => {
+    cb({});
+
+    let id = data.id.replaceAll("job_start_cornering_", "");
+    let sm = myMissions[id];
+    sm.cornerSetup = true;
+});
+
+RegisterNuiCallbackType('job_stop_cornering');
+on('__cfx_nui:job_stop_cornering', (data, cb) => {
+    cb({});
+
+    let id = data.id.replaceAll("job_stop_cornering_", "");
+    let sm = myMissions[id];
+    sm.cornerSetup = false;
 });
 
 RegisterNuiCallbackType('add_delivery_destination');
