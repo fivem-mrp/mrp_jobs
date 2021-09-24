@@ -49,8 +49,9 @@ let stateTransitions = {
             if (!this.vehicle) {
                 if (this.type == missionTypes.CARTING) {
                     let [veh, cart] = await spawnCart(job.vehicleSpawnLocation.x, job.vehicleSpawnLocation.y, job.vehicleSpawnLocation.z, job.vehicleSpawnLocation.heading);
-                    //TODO might need to store cart too
                     this.vehicle = veh;
+                    this.interactObject = cart;
+                    this.spawnedEntities = [cart];
                 } else {
                     RequestModel(job.vehicleSpawnLocation.modelHash);
                     while (!HasModelLoaded(job.vehicleSpawnLocation.modelHash)) {
@@ -128,10 +129,29 @@ let stateTransitions = {
         });
     },
     checkCornering: function() {
+        let oid = ObjectID(Object.values(this.job._id.id)).toString();
         if (!this.cornerSetup) {
             //next stage
             nextStage(this);
+            emit('mrp:thirdeye:removeMenuItem', {
+                id: 'craft_mission_' + oid
+            });
             return;
+        }
+
+        let lookingAt = MRP_CLIENT.getObjectInFront();
+        if (lookingAt && lookingAt == this.interactObject) {
+            console.debug(`Looking at cart`);
+            emit('mrp:thirdeye:addMenuItem', {
+                jobId: oid,
+                id: 'craft_mission_' + oid,
+                text: locale.craftHotdog,
+                action: 'https://mrp_jobs/craft_hotdog'
+            });
+        } else {
+            emit('mrp:thirdeye:removeMenuItem', {
+                id: 'craft_mission_' + oid
+            });
         }
     },
     onDriveToLocation: function() {
@@ -278,6 +298,13 @@ let stateTransitions = {
                     origin: char._id,
                     ammount: businessCut
                 });
+            }
+
+            if (this.spawnedEntities) {
+                //cleanup spawned stuff
+                for (let entity of this.spawnedEntities) {
+                    DeleteEntity(entity);
+                }
             }
         }
     }
@@ -1042,7 +1069,8 @@ let spawnCart = async (x, y, z, heading) => {
     let veh = CreateVehicle(bicycleHash, x, y, z, heading, true, true);
 
     //cart
-    let cart = CreateObject(GetHashKey('prop_burgerstand_01'), x, y, z, true);
+    let cart = CreateObject(GetHashKey('prop_burgerstand_01'), x, y, z, true, true);
+    SetEntityAsMissionEntity(cart, true, true);
 
     //attach ... yes bicecles have exhaust
     AttachEntityToEntity(cart, veh, GetEntityBoneIndexByName(veh, 'exhaust'), 0.0, -1.8, -0.575, 0.0, 0.0, -90.0, true, false, true, false, 0, true);

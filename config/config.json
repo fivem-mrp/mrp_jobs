@@ -33,7 +33,8 @@
             "payPrefix": "You have been paid ",
             "pointsAddedToMap": "Waypoints added to map click them to remove",
             "startCornering": "Start selling",
-            "stopCornering": "Stop selling"
+            "stopCornering": "Stop selling",
+            "craftHotdog": "Prepare Hot Dog"
         }
     },
     "waypointBlipColor": 5,
