@@ -153,6 +153,8 @@ let stateTransitions = {
                 id: 'craft_mission_' + oid
             });
         }
+
+        //TODO timer for NPC customers
     },
     onDriveToLocation: function() {
         //get random route
@@ -433,6 +435,27 @@ on('__cfx_nui:set_signup_location_cancel', (data, cb) => {
 RegisterNuiCallbackType('job_management');
 on('__cfx_nui:job_management', (data, cb) => {
     cb({});
+});
+
+RegisterNuiCallbackType('craft_hotdog');
+on('__cfx_nui:craft_hotdog', (data, cb) => {
+    cb({});
+    let ped = PlayerPedId();
+    FreezeEntityPosition(ped, true);
+    TaskStartScenarioInPlace(ped, 'PROP_HUMAN_BBQ', 0, true);
+    emit('mrp:startTimer', {
+        timer: config.craftTimer,
+        timerAction: 'https://mrp_jobs/crafting_done'
+    });
+});
+
+RegisterNuiCallbackType('crafting_done');
+on('__cfx_nui:crafting_done', (data, cb) => {
+    cb({});
+    let ped = PlayerPedId();
+    FreezeEntityPosition(ped, false);
+    ClearPedTasks(ped);
+    emitNet('mrp:inventory:server:AddItem', 'hotdog', 1);
 });
 
 RegisterNuiCallbackType('job_start_cornering');
@@ -1072,7 +1095,7 @@ let spawnCart = async (x, y, z, heading) => {
     let cart = CreateObject(GetHashKey('prop_burgerstand_01'), x, y, z, true, true);
     SetEntityAsMissionEntity(cart, true, true);
 
-    //attach ... yes bicecles have exhaust
+    //attach ... yes bicycles have exhaust
     AttachEntityToEntity(cart, veh, GetEntityBoneIndexByName(veh, 'exhaust'), 0.0, -1.8, -0.575, 0.0, 0.0, -90.0, true, false, true, false, 0, true);
 
     return [veh, cart];

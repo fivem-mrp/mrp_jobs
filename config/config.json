@@ -73,6 +73,7 @@
     "deliveryDistanceToTrunk": 3,
     "deliveryDistanceToDropoff": 3,
     "jobCheckInterval": 1000,
+    "craftTimer": 10000,
     "pedList": [
         "a_c_boar",
         "a_c_cat_01",
