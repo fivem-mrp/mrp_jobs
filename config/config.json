@@ -74,6 +74,7 @@
     "deliveryDistanceToDropoff": 3,
     "jobCheckInterval": 1000,
     "craftTimer": 10000,
+    "corneringRandomInterval": [10000, 15000],
     "pedList": [
         "a_c_boar",
         "a_c_cat_01",

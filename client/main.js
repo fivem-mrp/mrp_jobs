@@ -42,6 +42,21 @@ let myJobs = {};
 let myMissions = {};
 let allJobs = {};
 
+let getRandomPed = () => {
+    let peds = exports["mrp_core"].EnumeratePeds();
+    let randomIndex = utils.getRandomInt(0, peds.length - 1);
+    let ped = peds[randomIndex];
+    let netIndex = NetworkGetPlayerIndexFromPed(ped);
+    if (netIndex != -1)
+        ped = getRandomPed();
+
+    //mission NPCs are shared spawns for stuff like shop keepers
+    if (IsEntityAMissionEntity(ped))
+        ped = getRandomPed();
+
+    return ped;
+};
+
 let stateTransitions = {
     onGetVehicle: function() {
         let job = this.job;
@@ -116,7 +131,6 @@ let stateTransitions = {
         }
     },
     onCorner: function() {
-        //TODO
         let oid = ObjectID(Object.values(this.job._id.id)).toString();
         emit('mrp:radial_menu:removeMenuItem', {
             id: 'job_start_cornering_' + oid
@@ -154,7 +168,29 @@ let stateTransitions = {
             });
         }
 
-        //TODO timer for NPC customers
+        let timeout = utils.getRandomInt(config.corneringRandomInterval[0], config.corneringRandomInterval[1]);
+        if (!this.timer) {
+            this.timer = true;
+            this.timer = setTimeout(() => {
+                //clear timer
+                this.timer = null;
+                let exec = async () => {
+                    let randomPed = getRandomPed();
+                    let [standX, standY, standZ] = GetEntityCoords(this.interactObject);
+                    let standHeading = GetEntityHeading(this.interactObject);
+                    //TaskGoStraightToCoord(randomPed, standX, standY, standZ, 2.0, 20000, standHeading, 5);
+                    TaskGoToEntity(randomPed, this.interactObject, -1, 2.0, 2.0, 1073741824, 0);
+                    SetPedKeepTask(randomPed, true);
+                    while (GetScriptTaskStatus(randomPed, 0x4924437D) != 7) {
+                        //wait until NPC in vehicle
+                        await utils.sleep(100);
+                    }
+                    TaskStandStill(randomPed, -1);
+                    //TODO charge and give hotdog
+                };
+                exec();
+            }, timeout);
+        }
     },
     onDriveToLocation: function() {
         //get random route
