@@ -78,9 +78,11 @@
                 "craftAmmount": 1,
                 "turnAmmount": 1,
                 "corneringRandomInterval": [10000, 15000],
-                "blip": 616,
+                "blipIcon": 616,
                 "blipColor": 12,
-                "locationAOE": 40
+                "locationAOE": 40,
+                "cost": 60,
+                "paycut": 25
             }
         }
     },

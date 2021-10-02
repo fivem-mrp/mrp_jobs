@@ -344,6 +344,18 @@ let stateTransitions = {
                 let payCut = (this.paycut / 100) * this.cost;
                 let businessCut = this.cost - payCut;
                 let char = MRP_CLIENT.GetPlayerData();
+
+                if (this.type == missionTypes.CARTING) {
+                    if (!this.npcSoldCounter)
+                        this.npcSoldCounter = 0;
+
+                    if (!this.itemsCreatedCounter)
+                        this.itemsCreatedCounter = 0;
+
+                    payCut = payCut * this.npcSoldCounter;
+                    businessCut = businessCut * this.itemsCreatedCounter;
+                }
+
                 //pay employee
                 emitNet('mrp:bankin:server:deposit:byowner', {
                     owner: char._id,
