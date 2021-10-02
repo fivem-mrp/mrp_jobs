@@ -85,15 +85,15 @@ let stateTransitions = {
 
             if (!this.blip) {
                 let blip = AddBlipForEntity(this.vehicle);
-                SetBlipSprite(blip, config.deliveryBlip);
+                SetBlipSprite(blip, this.blipIcon);
                 SetBlipScale(blip, 1.0);
                 SetBlipAsShortRange(blip, true);
-                SetBlipColour(blip, config.deliveryBlipColor);
+                SetBlipColour(blip, this.blipColor);
                 this.blip = blip;
             }
 
             SetBlipRoute(this.blip, true);
-            SetBlipRouteColour(this.blip, config.deliveryBlipColor);
+            SetBlipRouteColour(this.blip, this.blipColor);
 
             let msg = locale[this.state];
 
@@ -168,7 +168,29 @@ let stateTransitions = {
             });
         }
 
-        let timeout = utils.getRandomInt(config.corneringRandomInterval[0], config.corneringRandomInterval[1]);
+        //Check looking at customer
+        let lookingAtPED = MRP_CLIENT.getPedInFront();
+        if (lookingAtPED && this.npcs && this.npcs.indexOf(lookingAtPED) != -1) {
+            console.debug(`Looking at NPC customer`);
+            emit('mrp:inventory:client:hasItem', 'hotdog', (count) => {
+                if (count > 0) {
+                    console.debug("Has hotdog");
+                    emit('mrp:thirdeye:addMenuItem', {
+                        jobId: oid,
+                        ped: lookingAtPED,
+                        id: 'give_item_mission_' + oid,
+                        text: locale.giveItem,
+                        action: 'https://mrp_jobs/give_item_mission'
+                    });
+                }
+            });
+        } else {
+            emit('mrp:thirdeye:removeMenuItem', {
+                id: 'give_item_mission_' + oid
+            });
+        }
+
+        let timeout = utils.getRandomInt(this.corneringRandomInterval[0], this.corneringRandomInterval[1]);
         if (!this.timer) {
             this.timer = true;
             this.timer = setTimeout(() => {
@@ -176,6 +198,8 @@ let stateTransitions = {
                 this.timer = null;
                 let exec = async () => {
                     let randomPed = getRandomPed();
+                    if (!this.npcs)
+                        this.npcs = [];
                     let [standX, standY, standZ] = GetEntityCoords(this.interactObject);
                     let standHeading = GetEntityHeading(this.interactObject);
                     //TaskGoStraightToCoord(randomPed, standX, standY, standZ, 2.0, 20000, standHeading, 5);
@@ -186,7 +210,7 @@ let stateTransitions = {
                         await utils.sleep(100);
                     }
                     TaskStandStill(randomPed, -1);
-                    //TODO charge and give hotdog
+                    this.npcs.push(randomPed);
                 };
                 exec();
             }, timeout);
@@ -207,7 +231,7 @@ let stateTransitions = {
     checkDrivingToLocation: function() {
         let ped = PlayerPedId();
         let wp = this.currentWaypoint;
-        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, this.locationAOE)) {
             //next stage
             nextStage(this);
         }
@@ -224,7 +248,7 @@ let stateTransitions = {
         MRP_CLIENT.drawText3D(trunkposX, trunkposY, trunkposZ, locale.trunk);
         let [pX, pY, pZ] = GetEntityCoords(ped);
         let distanceToTrunk = Vdist(pX, pY, pZ, trunkposX, trunkposY, trunkposZ);
-        if (distanceToTrunk <= config.deliveryDistanceToTrunk) {
+        if (distanceToTrunk <= this.distanceToTrunk) {
             MRP_CLIENT.displayHelpText(locale.deliveryGetShipmentHelp);
             if (IsControlJustPressed(1, 38)) {
                 //next stage
@@ -258,7 +282,7 @@ let stateTransitions = {
         let ped = PlayerPedId();
         let [pX, pY, pZ] = GetEntityCoords(ped);
         let distanceToDropoff = Vdist(pX, pY, pZ, this.currentWaypoint.x, this.currentWaypoint.y, this.currentWaypoint.z);
-        if (distanceToDropoff <= config.deliveryDistanceToDropoff) {
+        if (distanceToDropoff <= this.distanceToDropoff) {
             MRP_CLIENT.displayHelpText(locale.deliveryDropoffShipmentHelp);
             if (IsControlJustPressed(1, 38)) {
                 //next stage
@@ -284,7 +308,7 @@ let stateTransitions = {
     checkReturningVehicle: function() {
         let ped = PlayerPedId();
         let wp = this.currentWaypoint;
-        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, this.locationAOE)) {
             //next stage
             nextStage(this);
         }
@@ -298,7 +322,7 @@ let stateTransitions = {
     checkParkingVehicle: function() {
         let ped = PlayerPedId();
         let wp = this.currentWaypoint;
-        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, config.deliveryLocationArea)) {
+        if (MRP_CLIENT.isNearLocation(ped, wp.x, wp.y, wp.z, this.locationAOE)) {
             MRP_CLIENT.displayHelpText(locale.deliveryReturnVehicleHelp);
             if (IsControlJustPressed(1, 38)) {
                 //next stage
@@ -473,14 +497,39 @@ on('__cfx_nui:job_management', (data, cb) => {
     cb({});
 });
 
+RegisterNuiCallbackType('give_item_mission');
+on('__cfx_nui:give_item_mission', (data, cb) => {
+    cb({});
+    emitNet('mrp:inventory:server:RemoveItem', 'hotdog', 1);
+    if (data.ped) {
+        ClearPedTasks(data.ped);
+    }
+
+    let id = data.id.replaceAll("give_item_mission_", "");
+    let sm = myMissions[id];
+    if (sm && !sm.npcSoldCounter) {
+        sm.npcSoldCounter = 1;
+    } else if (sm && sm.npcSoldCounter >= 0) {
+        sm.npcSoldCounter++;
+    }
+});
+
 RegisterNuiCallbackType('craft_hotdog');
 on('__cfx_nui:craft_hotdog', (data, cb) => {
     cb({});
+    let id = data.id.replaceAll("craft_mission_", "");
+    let sm = myMissions[id];
+    if (sm && !sm.itemsCreatedCounter) {
+        sm.itemsCreatedCounter = 1;
+    } else if (sm && sm.itemsCreatedCounter >= 0) {
+        sm.itemsCreatedCounter++;
+    }
+
     let ped = PlayerPedId();
     FreezeEntityPosition(ped, true);
     TaskStartScenarioInPlace(ped, 'PROP_HUMAN_BBQ', 0, true);
     emit('mrp:startTimer', {
-        timer: config.craftTimer,
+        timer: sm.craftTimer,
         timerAction: 'https://mrp_jobs/crafting_done'
     });
 });
@@ -638,7 +687,7 @@ function getCheckFunctionName(state) {
     return checkStateName;
 }
 
-function startMission(mission, opt) {
+function startMission(mission) {
     if (!mission || !mission.data || !mission.data.job)
         return;
 
@@ -667,12 +716,11 @@ function startMission(mission, opt) {
 
     let sm = stages;
     sm.methods = methods;
-    sm.data = {
-        type: mission.type,
-        job: job,
-        cost: opt.cost,
-        paycut: opt.paycut
-    };
+    if (!sm.data)
+        sm.data = {};
+
+    sm.data.type = mission.type;
+    sm.data.job = job;
 
     let fsm = new StateMachine(sm);
 
@@ -686,13 +734,10 @@ onNet('mrp:jobs:client:startMission', (mission) => {
 
     switch (mission.type) {
         case missionTypes.DELIVERY:
-            startMission(mission, {
-                cost: config.deliveryCost,
-                paycut: config.deliveryWorkerPayPercentage
-            });
+            startMission(mission);
             break;
         case missionTypes.CARTING:
-            startMission(mission, {});
+            startMission(mission);
             break;
         default:
             break;
@@ -1009,7 +1054,7 @@ setInterval(() => {
             let ped = PlayerPedId();
             let modelHash = location.modelHash;
 
-            if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z, config.deliverySignupArea) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
+            if (MRP_CLIENT.isNearLocation(ped, location.x, location.y, location.z, config.signupArea) && MRP_CLIENT.isPedNearCoords(location.x, location.y, location.z, null, modelHash)) {
                 let pedInFront = MRP_CLIENT.getPedInFront();
                 let hasJob = myJobs[oid];
                 if (pedInFront > 0) {
@@ -1082,9 +1127,9 @@ function setWaypoint(wp, mission) {
     SetBlipSprite(blip, 8);
     SetBlipScale(blip, 1.0);
     SetBlipAsShortRange(blip, true);
-    SetBlipColour(blip, config.deliveryBlipColor);
+    SetBlipColour(blip, mission.blipColor);
     SetBlipRoute(blip, true);
-    SetBlipRouteColour(blip, config.deliveryBlipColor);
+    SetBlipRouteColour(blip, mission.blipColor);
     mission.waypointBlip = blip;
 }
 

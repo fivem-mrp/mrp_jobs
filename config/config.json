@@ -34,7 +34,8 @@
             "pointsAddedToMap": "Waypoints added to map click them to remove",
             "startCornering": "Start selling",
             "stopCornering": "Stop selling",
-            "craftHotdog": "Prepare Hot Dog"
+            "craftHotdog": "Prepare Hot Dog",
+            "giveItem": "Give hotdog"
         }
     },
     "waypointBlipColor": 5,
@@ -50,7 +51,16 @@
                 { "name": "returnVehicle", "from": "gettingVehicle", "to": "returningVehicle"},
                 { "name": "parkVehicle", "from": "returningVehicle", "to": "parkingVehicle"},
                 { "name": "end", "from": "parkingVehicle", "to": "end"}
-            ]
+            ],
+            "data": {
+                "cost": 2000,
+                "paycut": 20,
+                "blipIcon": 616,
+                "blipColor": 12,
+                "locationAOE": 40,
+                "distanceToTrunk": 3,
+                "distanceToDropoff": 3
+            }
         },
         "carting": {
             "init": "start",
@@ -61,20 +71,18 @@
                 { "name": "returnVehicle", "from": "cornering", "to": "returningVehicle"},
                 { "name": "parkVehicle", "from": "returningVehicle", "to": "parkingVehicle"},
                 { "name": "end", "from": "parkingVehicle", "to": "end"}
-            ]
+            ],
+            "data": {
+                "craftTimer": 10000,
+                "corneringRandomInterval": [10000, 15000],
+                "blip": 616,
+                "blipColor": 12,
+                "locationAOE": 40
+            }
         }
     },
-    "deliveryCost": 2000,
-    "deliveryWorkerPayPercentage": 20,
-    "deliveryBlip": 616,
-    "deliveryBlipColor": 12,
-    "deliveryLocationArea": 40,
-    "deliverySignupArea": 2,
-    "deliveryDistanceToTrunk": 3,
-    "deliveryDistanceToDropoff": 3,
+    "signupArea": 2,
     "jobCheckInterval": 1000,
-    "craftTimer": 10000,
-    "corneringRandomInterval": [10000, 15000],
     "pedList": [
         "a_c_boar",
         "a_c_cat_01",
