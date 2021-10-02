@@ -172,7 +172,7 @@ let stateTransitions = {
         let lookingAtPED = MRP_CLIENT.getPedInFront();
         if (lookingAtPED && this.npcs && this.npcs.indexOf(lookingAtPED) != -1) {
             console.debug(`Looking at NPC customer`);
-            emit('mrp:inventory:client:hasItem', 'hotdog', (count) => {
+            emit('mrp:inventory:client:hasItem', this.craftItem, (count) => {
                 if (count > 0) {
                     console.debug("Has hotdog");
                     emit('mrp:thirdeye:addMenuItem', {
@@ -500,7 +500,6 @@ on('__cfx_nui:job_management', (data, cb) => {
 RegisterNuiCallbackType('give_item_mission');
 on('__cfx_nui:give_item_mission', (data, cb) => {
     cb({});
-    emitNet('mrp:inventory:server:RemoveItem', 'hotdog', 1);
     if (data.ped) {
         ClearPedTasks(data.ped);
     }
@@ -512,8 +511,11 @@ on('__cfx_nui:give_item_mission', (data, cb) => {
     } else if (sm && sm.npcSoldCounter >= 0) {
         sm.npcSoldCounter++;
     }
+
+    emitNet('mrp:inventory:server:RemoveItem', sm.craftItem, sm.turnAmmount);
 });
 
+let craftMission = null;
 RegisterNuiCallbackType('craft_hotdog');
 on('__cfx_nui:craft_hotdog', (data, cb) => {
     cb({});
@@ -524,6 +526,8 @@ on('__cfx_nui:craft_hotdog', (data, cb) => {
     } else if (sm && sm.itemsCreatedCounter >= 0) {
         sm.itemsCreatedCounter++;
     }
+
+    craftMission = sm;
 
     let ped = PlayerPedId();
     FreezeEntityPosition(ped, true);
@@ -540,7 +544,8 @@ on('__cfx_nui:crafting_done', (data, cb) => {
     let ped = PlayerPedId();
     FreezeEntityPosition(ped, false);
     ClearPedTasks(ped);
-    emitNet('mrp:inventory:server:AddItem', 'hotdog', 1);
+    emitNet('mrp:inventory:server:AddItem', craftMission.craftItem, craftMission.craftAmmount);
+    craftMission = null;
 });
 
 RegisterNuiCallbackType('job_start_cornering');

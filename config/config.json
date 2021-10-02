@@ -74,6 +74,9 @@
             ],
             "data": {
                 "craftTimer": 10000,
+                "craftItem": "hotdog",
+                "craftAmmount": 1,
+                "turnAmmount": 1,
                 "corneringRandomInterval": [10000, 15000],
                 "blip": 616,
                 "blipColor": 12,
