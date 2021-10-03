@@ -78,11 +78,13 @@
                 "craftAmmount": 1,
                 "turnAmmount": 1,
                 "corneringRandomInterval": [10000, 15000],
+                "premiumStreets": ["Carcer Way", "Boulevard Del Perro", "Portola Dr", "Kimble Hill Dr", "Picture Perfect Drive", "North Rockford Dr", "Red Desert Ave", "San Andreas Ave", "Power st", "Vinewood Blvd", "West Mirror Drive"],
                 "blipIcon": 616,
                 "blipColor": 12,
                 "locationAOE": 40,
                 "cost": 60,
-                "paycut": 25
+                "paycut": 25,
+                "premiumExtraPay": 5
             }
         }
     },

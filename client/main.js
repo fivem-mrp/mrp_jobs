@@ -200,9 +200,6 @@ let stateTransitions = {
                     let randomPed = getRandomPed();
                     if (!this.npcs)
                         this.npcs = [];
-                    let [standX, standY, standZ] = GetEntityCoords(this.interactObject);
-                    let standHeading = GetEntityHeading(this.interactObject);
-                    //TaskGoStraightToCoord(randomPed, standX, standY, standZ, 2.0, 20000, standHeading, 5);
                     TaskGoToEntity(randomPed, this.interactObject, -1, 2.0, 2.0, 1073741824, 0);
                     SetPedKeepTask(randomPed, true);
                     while (GetScriptTaskStatus(randomPed, 0x4924437D) != 7) {
@@ -354,6 +351,11 @@ let stateTransitions = {
 
                     payCut = payCut * this.npcSoldCounter;
                     businessCut = businessCut * this.itemsCreatedCounter;
+
+                    //count premium sales
+                    if (this.npcSoldPremiumCounter && this.premiumExtraPay) {
+                        paycut += this.premiumExtraPay * this.npcSoldPremiumCounter;
+                    }
                 }
 
                 //pay employee
@@ -522,6 +524,19 @@ on('__cfx_nui:give_item_mission', (data, cb) => {
         sm.npcSoldCounter = 1;
     } else if (sm && sm.npcSoldCounter >= 0) {
         sm.npcSoldCounter++;
+    }
+
+    let playerPed = PlayerPedId();
+    let [x, y, z] = GetEntityCoords(playerPed);
+    let [streetNameHash] = GetStreetNameAtCoord(x, y, z);
+    let streetName = GetStreetNameFromHashKey(streetNameHash);
+    if (sm && sm.premiumStreets && sm.premiumStreets.indexOf(streetName) != -1) {
+        //Selling on premium street
+        if (sm && !sm.npcSoldPremiumCounter) {
+            sm.npcSoldPremiumCounter = 1;
+        } else if (sm && sm.npcSoldPremiumCounter >= 0) {
+            sm.npcSoldPremiumCounter++;
+        }
     }
 
     emitNet('mrp:inventory:server:RemoveItem', sm.craftItem, sm.turnAmmount);
